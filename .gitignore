@@ -43,4 +43,5 @@ build/
 *.log
 
 # Private DB Configuration
-# src/main/resources/db.properties
+src/main/resources/db.properties
+sql/config.env

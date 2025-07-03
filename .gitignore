@@ -38,5 +38,9 @@ build/
 ### Mac OS ###
 .DS_Store
 
+### Ignore log files, keep directory for setup ###
+/logs/
+*.log
+
 # Private DB Configuration
-src/main/resources/application.properties
+# src/main/resources/db.properties

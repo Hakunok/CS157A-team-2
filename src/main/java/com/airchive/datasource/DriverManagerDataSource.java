@@ -11,25 +11,27 @@ import javax.sql.DataSource;
 
 /**
  * DataSource implementation using DriverManager.
- * Implemented DataSource, just in case Professor does not allow the use of HikariCP
+ * Implemented DataSource, just so it's easy to switch between this and HikariCP
  */
 public class DriverManagerDataSource implements DataSource {
-  private String jdbcUrl;
+  private String driver;
   private String username;
   private String password;
-  private String driverClass;
+  private String database;
+  private String url;
 
   public DriverManagerDataSource() {
-    this.driverClass = PropertyLoader.getProperty("db.driverClass");
-    this.jdbcUrl = PropertyLoader.getProperty("db.url");
+    this.driver = PropertyLoader.getProperty("db.driver");
+    this.database = PropertyLoader.getProperty("db.database");
     this.username = PropertyLoader.getProperty("db.username");
     this.password = PropertyLoader.getProperty("db.password");
+    this.url = "jdbc:mysql://localhost:3306/" + database + "?useSSL=false&serverTimezone=UTC";
 
     try {
-      Class.forName(driverClass);
+      Class.forName(driver);
       System.out.println("JDBC Driver loaded for DriverManagerDataSource");
     } catch (ClassNotFoundException e) {
-      System.err.println("DB Driver class not found: " + driverClass);
+      System.err.println("DB Driver class not found: " + driver);
       e.printStackTrace();
       throw new RuntimeException("Missing JDBC Driver class for DriverManagerDataSource", e);
     }
@@ -37,12 +39,12 @@ public class DriverManagerDataSource implements DataSource {
 
   @Override
   public Connection getConnection() throws SQLException {
-    return DriverManager.getConnection(jdbcUrl, username, password);
+    return DriverManager.getConnection(url, username, password);
   }
 
   @Override
   public Connection getConnection(String username, String password) throws SQLException {
-    return DriverManager.getConnection(jdbcUrl, username, password);
+    return DriverManager.getConnection(url, username, password);
   }
 
   // Irrelevant methods, just here to satisfy DataSource interface contract

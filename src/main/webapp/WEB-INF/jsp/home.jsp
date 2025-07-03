@@ -11,6 +11,6 @@
     <title>AIrchive Homepage</title>
 </head>
 <body>
-    <header>AIrchive Homepage</header>
+    <h1>AIrchive Homepage</h1>
 </body>
 </html>

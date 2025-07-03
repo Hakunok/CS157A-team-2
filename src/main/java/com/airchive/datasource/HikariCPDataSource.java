@@ -11,16 +11,17 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 
 /**
- * Don't use yet, got to ask him if we are allowed to use connection pooling libraries.
+ * FIXME: Don't use yet, got to ask Professor if we are allowed to use connection pooling libraries.
  * DataSource implementation using HikariCP for connection pooling.
  */
 public class HikariCPDataSource implements DataSource {
   private HikariDataSource ds;
 
   public HikariCPDataSource() {
-    String url = PropertyLoader.getProperty("db.url");
     String username = PropertyLoader.getProperty("db.username");
     String password = PropertyLoader.getProperty("db.password");
+    String database = PropertyLoader.getProperty("db.database");
+    String url = "jdbc:mysql://localhost:3306/" + database + "?useSSL=false&serverTimezone=UTC";
 
     HikariConfig config = new HikariConfig();
     config.setJdbcUrl(url);

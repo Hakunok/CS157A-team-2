@@ -44,5 +44,4 @@ build/
 
 # Private DB Configuration
 src/main/resources/db.properties
-sql/config.env
-sql/applied_migrations.txt
+src/main/resources/logger.properties

@@ -3,9 +3,13 @@ package com.airchive;
 import com.airchive.dao.UserDAO;
 import com.airchive.datasource.DriverManagerDataSource;
 import com.airchive.service.UserService;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.logging.FileHandler;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -22,17 +26,11 @@ public class AppInitializer implements ServletContextListener {
   @Override
   public void contextInitialized(ServletContextEvent sce) {
     try {
-      // Setup logging
-      try (InputStream config = getClass().getResourceAsStream("/logger.properties")) {
-        if (config != null) {
-          LogManager.getLogManager().readConfiguration(config);
-        } else {
-          logger.warning("logger.properties not found, using default configuration");
-        }
-      }
-
       // Get ServletContext
       ServletContext servletContext = sce.getServletContext();
+
+      // Setup Logger
+      setupLogger(servletContext);
 
       // Setup DataSource
       DataSource dataSource = new DriverManagerDataSource();
@@ -69,5 +67,29 @@ public class AppInitializer implements ServletContextListener {
     }
 
     logger.info("Context destroyed, application shut down successfully.");
+  }
+
+  private void setupLogger(ServletContext context) throws IOException {
+    String logPath = context.getRealPath("/WEB-INF/logs");
+
+    File logDir = new File(logPath);
+    if (!logDir.exists()) {
+      logDir.mkdirs();
+    }
+
+    FileHandler fileHandler = new FileHandler(logPath + File.separator + "app-%u-%g.log", 5000000, 3, true);
+    fileHandler.setFormatter(new SimpleFormatter());
+
+    Logger rootLogger = Logger.getLogger("");
+    for (var handler : rootLogger.getHandlers()) {
+      rootLogger.removeHandler(handler);
+    }
+    rootLogger.addHandler(fileHandler);
+
+    try (InputStream config = getClass().getResourceAsStream("/logger.properties")) {
+      if (config != null) {
+        LogManager.getLogManager().readConfiguration(config);
+      }
+    }
   }
 }

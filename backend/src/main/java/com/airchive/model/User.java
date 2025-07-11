@@ -12,20 +12,31 @@ public class User {
   private String lastName;
   private String email;
   private String passwordHash;
+  private Role role;
+  private Status status;
   private LocalDateTime createdAt;
+
+  public enum Role {
+    READER, AUTHOR, ADMIN;
+  }
+
+  public enum Status {
+    ACTIVE, SUSPENDED, DELETED;
+  }
 
   public User() {}
 
-  public User(String username, String firstName, String lastName, String email, String passwordHash, LocalDateTime createdAt) {
+  public User(String username, String firstName, String lastName, String email,
+      String passwordHash, Role role, Status status, LocalDateTime createdAt) {
     this.username = username;
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;
     this.passwordHash = passwordHash;
-    this.createdAt = LocalDateTime.now();
+    this.role = role;
+    this.status = status;
+    this.createdAt = createdAt;
   }
-
-
 
   public Integer getUserId() {
     return userId;
@@ -74,6 +85,20 @@ public class User {
   }
   public void setCreatedAt(LocalDateTime createdAt) {
     this.createdAt = createdAt;
+  }
+
+  public Role getRole() {
+    return role;
+  }
+  public void setRole(Role role) {
+    this.role = role;
+  }
+
+  public Status getStatus() {
+    return status;
+  }
+  public void setStatus(Status status) {
+    this.status = status;
   }
 
   public String getFullName() {

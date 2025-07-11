@@ -2,8 +2,8 @@
  This doesn't drop the existing schema, you must do that beforehand if you choose to do so.
  Or just use a different database name.
  */
-CREATE DATABASE IF NOT EXISTS airchive;
-USE airchive;
+CREATE DATABASE IF NOT EXISTS airchive_v2;
+USE airchive_v2;
 
 /*
  Represents a user account on the platform
@@ -16,9 +16,8 @@ CREATE TABLE IF NOT EXISTS user (
     last_name VARCHAR(40) NOT NULL,
     email VARCHAR(75) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('reader', 'author', 'admin') NOT NULL DEFAULT 'reader',
-    status ENUM('active', 'suspended', 'deleted') NOT NULL DEFAULT 'active',
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    role ENUM('READER', 'AUTHOR', 'ADMIN') NOT NULL DEFAULT 'READER',
+    status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -33,7 +32,7 @@ CREATE TABLE IF NOT EXISTS author (
     last_name VARCHAR(40) NOT NULL,
     bio TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_verified BOOLEAN DEFAULT FALSE,
+    is_user BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE SET NULL
 );
 
@@ -47,13 +46,13 @@ CREATE TABLE IF NOT EXISTS publication (
     content TEXT,
     doi VARCHAR(100),
     url VARCHAR(2083),
-    type ENUM('paper', 'blog', 'article'),
+    type ENUM('PAPER', 'BLOG', 'ARTICLE'),
     submitter_id INT,
     published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     view_count INT DEFAULT 0,
     like_count INT DEFAULT 0,
-    status ENUM('published', 'unpublished', 'flagged', 'removed_by_admin') DEFAULT 'published',
+    status ENUM('PUBLISHED', 'UNPUBLISHED', 'DRAFT', 'REMOVED') DEFAULT 'PUBLISHED',
     FOREIGN KEY (submitter_id) REFERENCES user(user_id) ON DELETE SET NULL
 );
 
@@ -72,8 +71,8 @@ CREATE TABLE IF NOT EXISTS topic (
 CREATE TABLE IF NOT EXISTS reading_list (
     list_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    description VARCHAR(160),
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
     is_public BOOLEAN DEFAULT FALSE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
@@ -85,7 +84,7 @@ CREATE TABLE IF NOT EXISTS reading_list (
 CREATE TABLE IF NOT EXISTS author_request (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
     requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME,
     rejected_at DATETIME,
@@ -128,7 +127,7 @@ CREATE TABLE IF NOT EXISTS topic_interaction (
     interaction_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
     topic_id INT,
-    interaction ENUM('view', 'like', 'save', 'interest'),
+    interaction ENUM('VIEW', 'LIKE', 'SAVE', 'INTEREST'),
     interacted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE
@@ -162,24 +161,3 @@ CREATE TABLE IF NOT EXISTS likes (
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE
 );
-
-DELIMITER $$
-
-CREATE TRIGGER IF NOT EXISTS before_publication_update
-    BEFORE UPDATE ON publication
-    FOR EACH ROW
-BEGIN
-    IF NOT (
-        OLD.title <=> NEW.title AND
-        OLD.abstract <=> NEW.abstract AND
-        OLD.content <=> NEW.content AND
-        OLD.doi <=> NEW.doi AND
-        OLD.url <=> NEW.url
-    ) THEN
-        SET NEW.updated_at = CURRENT_TIMESTAMP;
-    ELSE
-        SET NEW.updated_at = OLD.updated_at;
-END IF;
-END$$
-
-DELIMITER ;

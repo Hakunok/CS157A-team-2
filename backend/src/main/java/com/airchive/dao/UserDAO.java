@@ -23,28 +23,28 @@ public class UserDAO {
 
   // SQL Constants
   private static final String INSERT_USER =
-      "INSERT INTO User (username, first_name, last_name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)";
+      "INSERT INTO user (username, first_name, last_name, email, password_hash, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
   private static final String SELECT_USER_BY_ID =
-      "SELECT * FROM User WHERE user_id = ?";
+      "SELECT * FROM user WHERE user_id = ?";
 
   private static final String SELECT_USER_BY_USERNAME =
-      "SELECT * FROM User WHERE username = ?";
+      "SELECT * FROM user WHERE username = ?";
 
   private static final String SELECT_USER_BY_EMAIL =
-      "SELECT * FROM User WHERE email = ?";
+      "SELECT * FROM user WHERE email = ?";
 
   private static final String UPDATE_USER =
-      "UPDATE User SET username = ?, first_name = ?, last_name = ?, email = ?, password_hash = ? WHERE user_id = ?";
+      "UPDATE user SET username = ?, first_name = ?, last_name = ?, email = ?, password_hash = ?, role = ?, status = ? WHERE user_id = ?";
 
   private static final String DELETE_USER =
-      "DELETE FROM User WHERE user_id = ?";
+      "DELETE FROM user WHERE user_id = ?";
 
-  private static final String COUNT_BY_USERNAME =
-      "SELECT COUNT(*) FROM User WHERE username = ?";
+  private static final String EXISTS_BY_USERNAME =
+      "SELECT EXISTS(SELECT 1 FROM user WHERE username = ?)";
 
-  private static final String COUNT_BY_EMAIL =
-      "SELECT COUNT(*) FROM User WHERE email = ?";
+  private static final String EXISTS_BY_EMAIL =
+      "SELECT EXISTS(SELECT 1 FROM user WHERE email = ?)";
 
 
   public UserDAO(DataSource dataSource) {
@@ -54,24 +54,11 @@ public class UserDAO {
     }
   }
 
-
   public UserDAO(ServletContext context) {
     this((DataSource) context.getAttribute("dataSource"));
   }
 
-  /**
-   * Saves a new User to the database. The User must not already exist in the database.
-   *
-   * @param user the User object to save. The User must not be null, and its ID must be null (indicating it is new).
-   * @return the saved User object with the database-generated ID assigned.
-   * @throws IllegalArgumentException if the User is null or already exists in the database.
-   * @throws SQLException if any database operation fails during the save process.
-   */
-  public User save(User user) throws SQLException {
-    if (user == null) {
-      throw new IllegalArgumentException("User cannot be null");
-    }
-
+  public User create(User user) throws SQLException {
     if (!user.isNew()) {
       throw new IllegalArgumentException("User already exists in database");
     }
@@ -84,7 +71,9 @@ public class UserDAO {
       stmt.setString(3, user.getLastName());
       stmt.setString(4, user.getEmail());
       stmt.setString(5, user.getPasswordHash());
-      stmt.setTimestamp(6, Timestamp.valueOf(user.getCreatedAt()));
+      stmt.setString(6, user.getRole().name());
+      stmt.setString(7, user.getStatus().name());
+      stmt.setTimestamp(8, Timestamp.valueOf(user.getCreatedAt()));
 
       int rowsAffected = stmt.executeUpdate();
       if (rowsAffected == 0) {
@@ -104,21 +93,9 @@ public class UserDAO {
     }
   }
 
-  /**
-   * Updates an existing User in the database with the provided information.
-   *
-   * @param user the User object containing updated information. The User must not be null and must already exist in the database.
-   * @return the updated User object with the changes persistently applied.
-   * @throws IllegalArgumentException if the provided User is null or if the User does not exist in the database.
-   * @throws SQLException if an error occurs during the database update operation.
-   */
   public User update(User user) throws SQLException {
-    if (user == null) {
-      throw new IllegalArgumentException("User cannot be null");
-    }
-
     if (user.isNew()) {
-      throw new IllegalArgumentException("User does not exist in database");
+      throw new IllegalArgumentException("User is null or does not exist in database");
     }
 
     try (Connection conn = dataSource.getConnection();
@@ -129,7 +106,9 @@ public class UserDAO {
       stmt.setString(3, user.getLastName());
       stmt.setString(4, user.getEmail());
       stmt.setString(5, user.getPasswordHash());
-      stmt.setInt(6, user.getUserId());
+      stmt.setString(6, user.getRole().name());
+      stmt.setString(7, user.getStatus().name());
+      stmt.setInt(8, user.getUserId());
 
       int rowsAffected = stmt.executeUpdate();
       if (rowsAffected == 0) {
@@ -141,72 +120,27 @@ public class UserDAO {
     }
   }
 
-  /**
-   * Finds a User by their unique ID.
-   *
-   * @param userId the unique identifier of the User to find (must not be null)
-   * @return an Optional containing the User if found, or Optional.empty() if no User is found with the given ID
-   */
   public Optional<User> findById(Integer userId) {
-    if (userId == null) {
-      return Optional.empty();
-    }
     return getUserByField(SELECT_USER_BY_ID, userId.toString());
   }
 
-  /**
-   * Finds a User by their unique username.
-   *
-   * @param username the username of the User to find (must not be null or empty)
-   * @return an Optional containing the User if found, or Optional.empty() if no User is found with the given username
-   */
   public Optional<User> findByUsername(String username) {
-    if (username == null || username.isEmpty()) {
-      return Optional.empty();
-    }
     return getUserByField(SELECT_USER_BY_USERNAME, username);
   }
 
-  /**
-   * Finds a User in the database by their unique email address.
-   *
-   * @param email the email address of the User to find (must not be null or empty)
-   * @return an Optional containing the User if found, or Optional.empty() if no User is found with the given email
-   */
   public Optional<User> findByEmail(String email) {
-    if (email == null || email.isEmpty()) {
-      return Optional.empty();
-    }
     return getUserByField(SELECT_USER_BY_EMAIL, email);
   }
 
-  /**
-   * Checks if a username already exists in the database.
-   *
-   * @param username the username to check for existence (must not be null or empty)
-   * @return true if the username exists in the database, false otherwise
-   */
   public boolean existsByUsername(String username) {
-    if (username == null || username.isEmpty()) {
-      return false;
-    }
-    return countByField(COUNT_BY_USERNAME, username) > 0;
+    return checkExistence(EXISTS_BY_USERNAME, username);
   }
 
-  /**
-   * Checks if an email address already exists in the database.
-   *
-   * @param email the email address to check for existence (must not be null or empty)
-   * @return true if the email exists in the database, false otherwise
-   */
   public boolean existsByEmail(String email) {
-    if (email == null || email.isEmpty()) {
-      return false;
-    }
-    return countByField(COUNT_BY_EMAIL, email) > 0;
+    return checkExistence(EXISTS_BY_EMAIL, email);
   }
 
-  // --- Private helper methods ---
+  // Private helper methods
 
   private Optional<User> getUserByField(String sql, String param) {
     try (Connection conn = dataSource.getConnection();
@@ -225,7 +159,7 @@ public class UserDAO {
     return Optional.empty();
   }
 
-  private int countByField(String sql, String param) {
+  private boolean checkExistence(String sql, String param) {
     try (Connection conn = dataSource.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -233,13 +167,13 @@ public class UserDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return rs.getInt(1);
+          return rs.getBoolean(1);
         }
       }
     } catch (SQLException e) {
-      logger.log(Level.SEVERE, "Error counting by field", e);
+      logger.log(Level.SEVERE, "Error checking existence by field", e);
     }
-    return 0;
+    return false;
   }
 
   private User extractUser(ResultSet rs) throws SQLException {
@@ -250,6 +184,8 @@ public class UserDAO {
     user.setLastName(rs.getString("last_name"));
     user.setEmail(rs.getString("email"));
     user.setPasswordHash(rs.getString("password_hash"));
+    user.setRole(User.Role.valueOf(rs.getString("role")));
+    user.setStatus(User.Status.valueOf(rs.getString("status")));
     user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
     return user;
   }

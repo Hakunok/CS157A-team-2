@@ -25,7 +25,7 @@ public class DriverManagerDataSource implements DataSource {
     this.database = PropertyLoader.getProperty("db.database");
     this.username = PropertyLoader.getProperty("db.username");
     this.password = PropertyLoader.getProperty("db.password");
-    this.url = "jdbc:mysql://localhost:3306/" + database + "?useSSL=false&serverTimezone=UTC";
+    this.url = "jdbc:mysql://localhost:3306/" + database + "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
 
     try {
       Class.forName(driver);

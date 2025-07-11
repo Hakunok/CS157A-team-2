@@ -1,68 +1,124 @@
+/*
+  This file defines the custom dark theme for the aiRchive application.
+  It overrides Bootstrap's default CSS variables to create a consistent look
+  inspired by GitHub's dark mode, with a custom purple primary color.
+*/
+
+/* 1. DEFINE YOUR CUSTOM COLOR PALETTE
+  This is the single source of truth for the app's style guide, inspired by your image.
+*/
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Primary Brand Colors (from the 5% Purple) */
+  --airchive-primary: #9370DB; /* Medium Purple */
+  --airchive-primary-hover: #8A2BE2; /* Blue Violet for hover */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* Background Colors (from the 80% Black and 10% Neutral) */
+  --airchive-bg-primary: #0d1117;   /* Deepest background, for the main page body */
+  --airchive-bg-secondary: #161b22; /* Lighter background for surfaces like cards, navbar */
+  --airchive-bg-tertiary: #010409;  /* Darkest background, for inputs */
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Text Colors (from the 80% Black/White and 10% Neutral) */
+  --airchive-text-primary: #e6edf3;   /* Main text color */
+  --airchive-text-secondary: #7d8590; /* Muted/secondary text color */
+
+  /* Border Color (from the 10% Neutral) */
+  --airchive-border: #30363d;
+
+  /* Semantic State Colors */
+  --airchive-danger: #f85149;
+  --airchive-warning: #d29922;
+  --airchive-success: #3CB371; /* Medium Sea Green (from the 5% Green) */
+  --airchive-info: #58a6ff;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* 2. OVERRIDE BOOTSTRAP'S DEFAULTS
+  This block tells Bootstrap to use our custom colors instead of its own defaults
+  whenever the dark theme is active.
+*/
+[data-bs-theme='dark'] {
+  /* Core Colors */
+  --bs-body-bg: var(--airchive-bg-primary);
+  --bs-body-color: var(--airchive-text-primary);
+  --bs-border-color: var(--airchive-border);
+
+  /* Primary Brand Color */
+  --bs-primary: var(--airchive-primary);
+  --bs-primary-rgb: 147, 112, 219; /* Updated RGB values for the new purple */
+  --bs-link-color: var(--airchive-primary);
+  --bs-link-hover-color: var(--airchive-primary-hover);
+
+  /* State Colors */
+  --bs-danger: var(--airchive-danger);
+  --bs-warning: var(--airchive-warning);
+  --bs-success: var(--airchive-success);
+  --bs-info: var(--airchive-info);
 }
-a:hover {
-  color: #535bf2;
-}
+
+/* 3. STYLE GLOBAL & SPECIFIC COMPONENTS
+  Here we apply our custom styles to ensure both Bootstrap and non-Bootstrap
+  elements look and feel consistent.
+*/
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Style for Cards, Modals, and other surfaces */
+.card, .modal-content {
+  background-color: var(--airchive-bg-secondary);
+  border: 1px solid var(--airchive-border);
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* Style for Form Inputs */
+.form-control, .form-control:focus {
+  background-color: var(--airchive-bg-tertiary);
+  border-color: var(--airchive-border);
+  color: var(--airchive-text-primary);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Style for the Navbar */
+.navbar {
+  background-color: var(--airchive-bg-secondary) !important;
+  border-bottom: 1px solid var(--airchive-border);
+}
+
+/* Primary Button Style */
+.btn-primary {
+  --bs-btn-bg: var(--airchive-primary);
+  --bs-btn-border-color: var(--airchive-primary);
+  --bs-btn-hover-bg: var(--airchive-primary-hover);
+  --bs-btn-hover-border-color: var(--airchive-primary-hover);
+  --bs-btn-active-bg: var(--airchive-primary-hover);
+  --bs-btn-active-border-color: var(--airchive-primary-hover);
+  --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+  color: #ffffff;
+}
+
+/* Ensure text on other colored buttons is also high-contrast */
+.btn-danger, .btn-success {
+  color: #ffffff;
+}
+
+/* Explicitly style Alerts to use our custom theme colors */
+.alert-primary {
+  --bs-alert-bg: var(--airchive-primary);
+  --bs-alert-color: #ffffff;
+  --bs-alert-border-color: var(--airchive-primary-hover);
+}
+
+.alert-danger {
+  --bs-alert-bg: var(--airchive-danger);
+  --bs-alert-color: #ffffff;
+  --bs-alert-border-color: #f85149; /* A slightly different shade for border */
+}
+
+.alert-success {
+  --bs-alert-bg: var(--airchive-success);
+  --bs-alert-color: #ffffff;
+  --bs-alert-border-color: #2ea043;
 }

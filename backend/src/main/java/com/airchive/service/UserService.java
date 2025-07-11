@@ -1,10 +1,14 @@
 package com.airchive.service;
 
 import com.airchive.dao.UserDAO;
+import com.airchive.exception.EmailAlreadyExistsException;
 import com.airchive.exception.UserAlreadyExistsException;
 import com.airchive.exception.UserNotFoundException;
+import com.airchive.exception.UsernameAlreadyExistsException;
 import com.airchive.exception.ValidationException;
 import com.airchive.model.User;
+import com.airchive.model.User.Role;
+import com.airchive.model.User.Status;
 import com.airchive.util.PasswordUtils;
 import com.airchive.util.ValidationUtils;
 import java.sql.SQLException;
@@ -12,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.servlet.ServletContext;
 
 /**
  * The UserService class provides functionality for user management in the system.
@@ -20,144 +25,101 @@ import java.util.logging.Logger;
  * interacts with the UserDAO.
  */
 public class UserService {
-  private static final Logger logger = Logger.getLogger(UserService.class.getName());
+  private static Logger logger = Logger.getLogger(UserService.class.getName());
   private final UserDAO userDAO;
 
   public UserService(UserDAO userDAO) {
     this.userDAO = userDAO;
-    if (this.userDAO == null) {
-      throw new IllegalArgumentException("UserDAO cannot be null.");
-    }
   }
 
-  /**
-   * Creates a new user with the specified details, validates the input,
-   * checks for existing users, hashes the password, and saves the user
-   * to the database.
-   *
-   * @param username the username of the user to create (must be unique)
-   * @param firstName the first name of the user
-   * @param lastName the last name of the user
-   * @param email the email address of the user (must be unique and valid)
-   * @param plainPassword the plain-text password of the user, which will be hashed
-   * @return the newly created User object with an assigned ID
-   * @throws ValidationException if any input parameter is invalid
-   * @throws UserAlreadyExistsException if a user with the same username or email already exists
-   */
-  public User createUser(String username, String firstName, String lastName, String email,
+  public UserService(ServletContext context) {
+    this((UserDAO) context.getAttribute("userDAO"));
+  }
+
+  public User registerNewUser(String username, String firstName, String lastName, String email,
       String plainPassword) throws ValidationException, UserAlreadyExistsException {
-    logger.info("Creating new user: " + username);
 
-    validateUserCreationInput(username, firstName, lastName, email, plainPassword);
+    validateUserInput(username, firstName, lastName, email, plainPassword);
 
-    username = username.trim();
-    firstName = firstName.trim();
-    lastName = lastName.trim();
-    email = email.trim().toLowerCase();
-
-    checkForExistingUser(username, email);
+    String sanitizedUsername = username.trim();
+    String sanitizedEmail = email.trim().toLowerCase();
+    checkForExistingUser(sanitizedUsername, sanitizedEmail);
 
     User user = new User();
-    user.setUsername(username);
-    user.setFirstName(firstName);
-    user.setLastName(lastName);
-    user.setEmail(email);
+    user.setUsername(sanitizedUsername);
+    user.setFirstName(firstName.trim());
+    user.setLastName(lastName.trim());
+    user.setEmail(sanitizedEmail);
     user.setPasswordHash(PasswordUtils.hashPassword(plainPassword));
+    user.setRole(Role.READER);
+    user.setStatus(Status.ACTIVE);
     user.setCreatedAt(LocalDateTime.now());
 
     try {
-      User savedUser = userDAO.save(user);
-      logger.info("Created new user: " + savedUser.getUsername());
-      return savedUser;
+      User createdUser = userDAO.create(user);
+      logger.info("Created new user: " + createdUser.getUsername());
+      return createdUser;
     } catch (SQLException e) {
-      logger.log(Level.SEVERE, "Failed to create user: " + username, e);
-      throw new RuntimeException("Failed to create user account");
+      logger.log(Level.SEVERE, "Failed to create user due to SQL error: " + username, e);
+      throw new RuntimeException("Failed to create user account", e);
     }
   }
 
-  /**
-   * Authenticates a user using their username or email and a plain-text password.
-   * This method verifies the user's credentials and returns the corresponding User object if authentication is successful.
-   *
-   * @param usernameOrEmail the username or email address provided by the user for authentication
-   * @param plainPassword the plain-text password provided by the user for authentication
-   * @return the authenticated User object containing the user's information
-   * @throws ValidationException if the username/email or password is invalid, incorrect, or if the user does not exist
-   */
   public User authenticateUser(String usernameOrEmail, String plainPassword) throws ValidationException {
     if (usernameOrEmail == null || usernameOrEmail.trim().isEmpty()) {
-      throw new ValidationException("Username or email is required");
+      throw new ValidationException("Username or email is required.");
     }
 
     if (plainPassword == null || plainPassword.isEmpty()) {
-      throw new ValidationException("Password is required");
+      throw new ValidationException("Password is required.");
     }
 
-    usernameOrEmail = usernameOrEmail.trim();
-
-    Optional<User> userOpt = userDAO.findByUsername(usernameOrEmail);
+    Optional<User> userOpt = userDAO.findByUsername(usernameOrEmail.trim());
     if (userOpt.isEmpty()) {
-      userOpt = userDAO.findByEmail(usernameOrEmail);
+      userOpt = userDAO.findByEmail(usernameOrEmail.trim());
     }
 
-    if (userOpt.isEmpty()) {
-      throw new ValidationException("Invalid username or email");
+    if (userOpt.isEmpty() || !PasswordUtils.verifyPassword(plainPassword, userOpt.get().getPasswordHash())) {
+      throw new ValidationException("Invalid credentials.");
     }
 
     User user = userOpt.get();
-    if (!PasswordUtils.verifyPassword(plainPassword, user.getPasswordHash())) {
-      throw new ValidationException("Invalid username/email or password");
+    if (user.getStatus() != Status.ACTIVE) {
+      throw new ValidationException("This account is currently " + user.getStatus().name().toLowerCase() + ".");
     }
 
     logger.info("User authenticated successfully: " + user.getUsername());
     return user;
   }
 
-  /**
-   * Updates an existing user with the specified details. Validates the inputs,
-   * checks for conflicts with existing users, trims and sanitizes the fields,
-   * and persists the updated information to the database.
-   *
-   * @param userId the unique ID of the user to be updated; must not be null
-   * @param username the new username for the user; must be unique and meet validation criteria
-   * @param firstName the updated first name for the user
-   * @param lastName the updated last name for the user
-   * @param email the updated email address for the user; must be unique and valid
-   * @return the updated User object containing the new details
-   * @throws IllegalArgumentException if the userId is null
-   * @throws UserNotFoundException if no user exists with the specified userId
-   * @throws ValidationException if any of the input parameters fail validation checks
-   * @throws UserAlreadyExistsException if the provided username or email conflicts with another existing user
-   */
+
   public User updateUser(Integer userId, String username, String firstName, String lastName,
-      String email) throws UserNotFoundException, ValidationException, UserAlreadyExistsException {
+      String email, Role role, Status status) throws UserNotFoundException, ValidationException,
+      UserAlreadyExistsException {
 
     if (userId == null) {
       throw new IllegalArgumentException("User ID cannot be null.");
     }
 
-    Optional<User> existingUserOpt = userDAO.findById(userId);
-    if (existingUserOpt.isEmpty()) {
-      throw new UserNotFoundException("User not found with ID:" + userId);
-    }
+    User user = userDAO.findById(userId)
+        .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
-    validateUserUpdateInput(username, firstName, lastName, email);
-    username = username.trim();
-    firstName = firstName.trim();
-    lastName = lastName.trim();
-    email = email.trim().toLowerCase();
+    validateUserInput(username, firstName, lastName, email, null);
 
-    checkForExistingUserExcept(username, email, userId);
+    String sanitizedUsername = username.trim();
+    String sanitizedEmail = email.trim().toLowerCase();
+    checkForExistingUserExcluding(sanitizedUsername, sanitizedEmail, userId);
 
-    User existingUser = existingUserOpt.get();
-    existingUser.setUsername(username);
-    existingUser.setFirstName(firstName);
-    existingUser.setLastName(lastName);
-    existingUser.setEmail(email);
+    user.setUsername(sanitizedUsername);
+    user.setFirstName(firstName.trim());
+    user.setLastName(lastName.trim());
+    user.setEmail(sanitizedEmail);
+    user.setRole(role);
+    user.setStatus(status);
 
     try {
-      User updatedUser = userDAO.update(existingUser);
-      logger.info("User updated successfully: " + updatedUser.getUsername());
+      User updatedUser = userDAO.update(user);
+      logger.info("Successfully updated user: " + updatedUser.getUsername());
       return updatedUser;
     } catch (SQLException e) {
       logger.log(Level.SEVERE, "Failed to update user: " + userId, e);
@@ -165,18 +127,7 @@ public class UserService {
     }
   }
 
-  /**
-   * Changes the password of a User identified via user ID.
-   *
-   * @param userId the unique identifier of the user whose password is being changed; must not be null
-   * @param currentPassword the current password of the user, used for verification
-   * @param newPassword the new password to replace the current password; must be at least 8 characters long
-   * @throws UserNotFoundException if no user is found with the given userId
-   * @throws ValidationException if the current password is incorrect, or if the new password does
-   * not meet the required criteria
-   * @throws IllegalArgumentException if the userId is null
-   * @throws RuntimeException if an error occurs while updating the password in the system
-   */
+
   public void changePassword(Integer userId, String currentPassword, String newPassword)
       throws UserNotFoundException, ValidationException {
 
@@ -184,19 +135,15 @@ public class UserService {
       throw new IllegalArgumentException("User ID cannot be null");
     }
 
-    Optional<User> userOpt = userDAO.findById(userId);
-    if (userOpt.isEmpty()) {
-      throw new UserNotFoundException("User not found with ID:" + userId);
-    }
-
-    User user = userOpt.get();
+    User user = userDAO.findById(userId)
+        .orElseThrow(() -> new UserNotFoundException("User not found with ID: " + userId));
 
     if (!PasswordUtils.verifyPassword(currentPassword, user.getPasswordHash())) {
       throw new ValidationException("Current password is incorrect");
     }
 
-    if (newPassword == null || newPassword.length() < 8) {
-      throw new ValidationException("New password must be at least 8 characters long");
+    if (!ValidationUtils.isValidPassword(newPassword)) {
+      throw new ValidationException("Password must be at least 8 characters long.");
     }
 
     user.setPasswordHash(PasswordUtils.hashPassword(newPassword));
@@ -210,16 +157,6 @@ public class UserService {
     }
   }
 
-  /**
-   * Retrieves a user by their username from the database.
-   * The method trims the provided username and performs a search.
-   * If the username is null, empty, or the user is not found, appropriate exceptions are thrown.
-   *
-   * @param username the username of the user to be retrieved; must not be null or empty
-   * @return the User object associated with the given username
-   * @throws IllegalArgumentException if the provided username is null or empty
-   * @throws UserNotFoundException if no user is found with the provided username
-   */
   public User findByUsername(String username) throws UserNotFoundException {
     if (username == null || username.trim().isEmpty()) {
       throw new IllegalArgumentException("Username cannot be null or empty");
@@ -233,14 +170,7 @@ public class UserService {
     return userOpt.get();
   }
 
-  /**
-   * Retrieves a user by their email address.
-   *
-   * @param email the email address of the user to be retrieved; must not be null or empty
-   * @return the User object associated with the provided email address
-   * @throws IllegalArgumentException if the provided email is null or empty
-   * @throws UserNotFoundException if no user is found with the provided email
-   */
+
   public User findByEmail(String email) throws UserNotFoundException {
     if (email == null || email.trim().isEmpty()) {
       throw new IllegalArgumentException("Email cannot be null or empty");
@@ -254,13 +184,6 @@ public class UserService {
     return userOpt.get();
   }
 
-  /**
-   * Checks whether the specified username is available for use.
-   * This method trims the username, validates the input, and queries the database to determine if the username already exists.
-   *
-   * @param username the username to check for availability (must not be null or empty)
-   * @return true if the username is available, false if it already exists or the input is invalid
-   */
   public boolean isUsernameAvailable(String username) {
     if (username == null || username.trim().isEmpty()) {
       return false;
@@ -268,13 +191,7 @@ public class UserService {
     return !userDAO.existsByUsername(username.trim());
   }
 
-  /**
-   * Checks whether the provided email is available for use.
-   * This method verifies if the email already exists in the system, ignoring case and whitespace.
-   *
-   * @param email the email address to check (must not be null or empty)
-   * @return true if the email is available, false if it already exists or the input is invalid
-   */
+
   public boolean isEmailAvailable(String email) {
     if (email == null || email.trim().isEmpty()) {
       return false;
@@ -282,97 +199,100 @@ public class UserService {
     return !userDAO.existsByEmail(email.trim().toLowerCase());
   }
 
-
-  // --- Private helper methods ---
-
-  private void validateUserCreationInput(String username, String firstName, String lastName,
-      String email, String plainPassword) throws ValidationException {
-    if (username == null || username.trim().isEmpty()) {
-      throw new ValidationException("Username is required");
-    }
-    if (firstName == null || firstName.trim().isEmpty()) {
-      throw new ValidationException("First name is required");
-    }
-    if (lastName == null || lastName.trim().isEmpty()) {
-      throw new ValidationException("Last name is required");
-    }
-    if (email == null || email.trim().isEmpty()) {
-      throw new ValidationException("Email is required");
-    }
-    if (plainPassword == null || plainPassword.isEmpty()) {
-      throw new ValidationException("Password is required");
-    }
-
-    username = username.trim();
-    email = email.trim();
-
-    if (!ValidationUtils.isValidUsernameLength(username)) {
-      throw new ValidationException("Username must be between 3 and 20 characters long");
-    }
-
-    if (!ValidationUtils.isValidUsernameFormat(username)) {
-      throw new ValidationException("Username may only contain alphanumeric characters or single underscores, and cannot begin or end with an underscore.");
-    }
-
-    if (!ValidationUtils.isValidEmail(email)) {
-      throw new ValidationException("Please enter a valid email haha.");
-    }
-
-    if (plainPassword.length() < 8) {
-      throw new ValidationException("Password must be at least 8 characters long");
+  // Validation messages sent by the ValidationServlet to the React frontend
+  public String validateField(String field, String value, String passwordForConfirmation) {
+    try {
+      switch (field) {
+        case "username":
+          if (!ValidationUtils.isValidUsername(value)) {
+            throw new ValidationException("Username must be 3-20 characters long, with no "
+                + "leading/trailing underscores.");
+          }
+          if (userDAO.existsByUsername(value.trim())) {
+            throw new UsernameAlreadyExistsException("This username is already in use.");
+          }
+          break;
+        case "email":
+          if (!ValidationUtils.isValidEmail(value)) {
+            throw new ValidationException("Please enter a valid email address.");
+          }
+          if (userDAO.existsByEmail(value.trim().toLowerCase())) {
+            throw new EmailAlreadyExistsException("This email is already in use.");
+          }
+          break;
+        case "password":
+          if (!ValidationUtils.isValidPassword(value)) {
+            throw new ValidationException("Password must be at least 8 characters long.");
+          }
+          break;
+        case "confirmPassword":
+          if (passwordForConfirmation == null || passwordForConfirmation.trim().isEmpty()) {
+            throw new ValidationException("Password is required first.");
+          }
+          if (value == null || !value.equals(passwordForConfirmation)) {
+            throw new ValidationException("Passwords must match.");
+          }
+          break;
+        case "firstName":
+          if (!ValidationUtils.isValidName(value)) {
+            throw new ValidationException("First name contains invalid characters or is too long.");
+          }
+          break;
+        case "lastName":
+          if (!ValidationUtils.isValidName(value)) {
+            throw new ValidationException("Last name contains invalid characters or is too long.");
+          }
+          break;
+      }
+      return null;
+    } catch (ValidationException | UserAlreadyExistsException e) {
+      return e.getMessage();
     }
   }
 
-  private void validateUserUpdateInput(String username, String firstName, String lastName,
-      String email) throws ValidationException {
-    if (username == null || username.trim().isEmpty()) {
-      throw new ValidationException("Username is required");
-    }
-    if (firstName == null || firstName.trim().isEmpty()) {
-      throw new ValidationException("First name is required");
-    }
-    if (lastName == null || lastName.trim().isEmpty()) {
-      throw new ValidationException("Last name is required");
-    }
-    if (email == null || email.trim().isEmpty()) {
-      throw new ValidationException("Email is required");
-    }
 
-    username = username.trim();
-    email = email.trim();
+  // --- Private helper methods ---
 
-    if (!ValidationUtils.isValidUsernameLength(username)) {
-      throw new ValidationException("Username must be between 3 and 20 characters long");
+  private void validateUserInput(String username, String firstName, String lastName,
+      String email, String password) throws ValidationException {
+    if (!ValidationUtils.isValidUsername(username)) {
+      throw new ValidationException("Username must be 3-20 characters long, with no "
+          + "leading/trailing underscores.");
     }
-
-    if (!ValidationUtils.isValidUsernameFormat(username)) {
-      throw new ValidationException("Username may only contain alphanumeric characters or single underscores, and cannot begin or end with an underscore.");
+    if (!ValidationUtils.isValidName(firstName)) {
+      throw new ValidationException("First name is required and must be 40 characters or less.");
     }
-
+    if (!ValidationUtils.isValidName(lastName)) {
+      throw new ValidationException("Last name is required and must be 40 characters or less.");
+    }
     if (!ValidationUtils.isValidEmail(email)) {
-      throw new ValidationException("Please enter a valid email address.");
+      throw new ValidationException("Email is invalid.");
+    }
+    if (password != null && !ValidationUtils.isValidPassword(password)) {
+      throw new ValidationException("Password must be at least 8 characters long.");
     }
   }
 
   private void checkForExistingUser(String username, String email) throws UserAlreadyExistsException {
     if (userDAO.existsByUsername(username)) {
-      throw new UserAlreadyExistsException("Username already exists: " + username);
+      throw new UsernameAlreadyExistsException("Username is already taken.");
     }
 
     if (userDAO.existsByEmail(email)) {
-      throw new UserAlreadyExistsException("Email already exists: " + email);
+      throw new EmailAlreadyExistsException("Email is already taken.");
     }
   }
 
-  private void checkForExistingUserExcept(String username, String email, Integer excludeUserId) throws UserAlreadyExistsException {
+  private void checkForExistingUserExcluding(String username, String email,
+      Integer excludeUserId) throws UserAlreadyExistsException {
     Optional<User> userByUsername = userDAO.findByUsername(username);
     if (userByUsername.isPresent() && !userByUsername.get().getUserId().equals(excludeUserId)) {
-      throw new UserAlreadyExistsException("Username already exists: " + username);
+      throw new UsernameAlreadyExistsException("Username is already taken.");
     }
 
     Optional<User> userByEmail = userDAO.findByEmail(email);
     if (userByEmail.isPresent() && !userByEmail.get().getUserId().equals(excludeUserId)) {
-      throw new UserAlreadyExistsException("Email already exists: " + email);
+      throw new EmailAlreadyExistsException("Email is already taken.");
     }
   }
 }

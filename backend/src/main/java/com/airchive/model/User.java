@@ -3,7 +3,14 @@ package com.airchive.model;
 import java.time.LocalDateTime;
 
 /**
- * Represents an individual with an aiRchive account
+ * The User class represents a user in the system and contains essential
+ * information about the user, such as personal details, credentials, role, and status.
+ * Additionally, this class provides utility methods for accessing and manipulating
+ * user data.
+ *
+ * Nested Enums:
+ * - UserRole: Enum to represent the type of role assigned to the user.
+ * - UserStatus: Enum to represent the current status of the user account.
  */
 public class User {
   private Integer userId;
@@ -12,30 +19,36 @@ public class User {
   private String lastName;
   private String email;
   private String passwordHash;
-  private Role role;
-  private Status status;
+  private UserRole userRole;
+  private UserStatus userStatus;
   private LocalDateTime createdAt;
 
-  public enum Role {
+  public enum UserRole {
     READER, AUTHOR, ADMIN;
   }
 
-  public enum Status {
+  public enum UserStatus {
     ACTIVE, SUSPENDED, DELETED;
   }
 
   public User() {}
 
-  public User(String username, String firstName, String lastName, String email,
-      String passwordHash, Role role, Status status, LocalDateTime createdAt) {
+  public User(Integer userId, String username, String firstName, String lastName, String email,
+      String passwordHash, UserRole userRole, UserStatus userStatus, LocalDateTime createdAt) {
+    this.userId = userId;
     this.username = username;
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;
     this.passwordHash = passwordHash;
-    this.role = role;
-    this.status = status;
+    this.userRole = userRole;
+    this.userStatus = userStatus;
     this.createdAt = createdAt;
+  }
+
+  public User(String username, String firstName, String lastName, String email,
+      String passwordHash, UserRole userRole, UserStatus userStatus, LocalDateTime createdAt) {
+    this(null, username, firstName, lastName, email, passwordHash, userRole, userStatus, createdAt);
   }
 
   public Integer getUserId() {
@@ -87,18 +100,18 @@ public class User {
     this.createdAt = createdAt;
   }
 
-  public Role getRole() {
-    return role;
+  public UserRole getRole() {
+    return userRole;
   }
-  public void setRole(Role role) {
-    this.role = role;
+  public void setRole(UserRole userRole) {
+    this.userRole = userRole;
   }
 
-  public Status getStatus() {
-    return status;
+  public UserStatus getStatus() {
+    return userStatus;
   }
-  public void setStatus(Status status) {
-    this.status = status;
+  public void setStatus(UserStatus userStatus) {
+    this.userStatus = userStatus;
   }
 
   public String getFullName() {

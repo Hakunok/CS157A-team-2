@@ -16,14 +16,14 @@ CREATE TABLE IF NOT EXISTS user (
     last_name VARCHAR(40) NOT NULL,
     email VARCHAR(75) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('READER', 'AUTHOR', 'ADMIN') NOT NULL DEFAULT 'READER',
-    status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
+    userRole ENUM('READER', 'AUTHOR', 'ADMIN') NOT NULL DEFAULT 'READER',
+    userStatus ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 /*
  Represents an author profile on the platform
- An author entity can have an optional relationship (link) with a user entity whose role is "author"
+ An author entity can have an optional relationship (link) with a user entity whose userRole is "author"
  */
 CREATE TABLE IF NOT EXISTS author (
     author_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS publication (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     view_count INT DEFAULT 0,
     like_count INT DEFAULT 0,
-    status ENUM('PUBLISHED', 'UNPUBLISHED', 'DRAFT', 'REMOVED') DEFAULT 'PUBLISHED',
+    userStatus ENUM('PUBLISHED', 'UNPUBLISHED', 'DRAFT', 'REMOVED') DEFAULT 'PUBLISHED',
     FOREIGN KEY (submitter_id) REFERENCES user(user_id) ON DELETE SET NULL
 );
 
@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS topic (
     topic_id INT PRIMARY KEY AUTO_INCREMENT,
     code VARCHAR(10) NOT NULL UNIQUE,
     name VARCHAR(50) NOT NULL UNIQUE
+    color_hex VARCHAR(7) UNIQUE
 );
 
 /*
@@ -84,7 +85,7 @@ CREATE TABLE IF NOT EXISTS reading_list (
 CREATE TABLE IF NOT EXISTS author_request (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    userStatus ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
     requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME,
     rejected_at DATETIME,

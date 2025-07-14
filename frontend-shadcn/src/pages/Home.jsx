@@ -1,4 +1,5 @@
-// src/pages/Home.jsx
+
+
 export default function Home({ isAuthenticated }) {
   return (
       <div>

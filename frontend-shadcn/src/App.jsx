@@ -1,4 +1,3 @@
-// src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { useState } from "react"
 import Navbar from "./components/Navbar"

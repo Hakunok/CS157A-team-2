@@ -1,8 +1,11 @@
 package com.airchive.config;
 
+import com.airchive.dao.AuthorDAO;
 import com.airchive.dao.UserDAO;
 import com.airchive.datasource.DriverManagerDataSource;
+import com.airchive.service.AuthorService;
 import com.airchive.service.UserService;
+import com.airchive.util.ApplicationContextProvider;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,40 +15,45 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 import javax.sql.DataSource;
 
 /**
- * Application initializer for setting up the servlet context and application dependencies during startup.
+ * The {@code ServletContextListener} class is a custom implementation of the
+ * {@code javax.servlet.ServletContextListener} interface, which listens for
+ * changes to the lifecycle of the Servlet context.
+ *
+ * Main responsibilities include:
+ * - Initializing a {@code DriverManagerDataSource} for database connectivity.
+ * - Creating and storing DAOs and services in the Servlet context.
+ * - Handling any exceptions and ensuring the proper cleanup of resources.
  */
 @WebListener
-public class AppInitializer implements ServletContextListener {
-  private static final Logger logger = Logger.getLogger(AppInitializer.class.getName());
+public class ServletContextListener implements javax.servlet.ServletContextListener {
+  private static final Logger logger = Logger.getLogger(ServletContextListener.class.getName());
 
   @Override
   public void contextInitialized(ServletContextEvent sce) {
     try {
+
       // Get ServletContext
-      ServletContext servletContext = sce.getServletContext();
+      ServletContext context = sce.getServletContext();
+      ApplicationContextProvider.setServletContext(context);
 
       // Setup Logger
-      setupLogger(servletContext);
+      setupLogger(context);
 
       // Setup DataSource
-      DataSource dataSource = new DriverManagerDataSource();
-      servletContext.setAttribute("dataSource", dataSource);
-      logger.info("DataSource initialized.");
+      context.setAttribute("dataSource", new DriverManagerDataSource());
 
       // Setup DAOs
-      UserDAO userDAO = new UserDAO(servletContext);
-      servletContext.setAttribute("userDAO", userDAO);
-      logger.info("DAOs initialized.");
+      context.setAttribute("userDAO", new UserDAO());
+      context.setAttribute("authorDAO", new AuthorDAO());
 
       // Setup Services
-      UserService userService = new UserService(servletContext);
-      servletContext.setAttribute("userService", userService);
-      logger.info("Services initialized.");
+      context.setAttribute("userService", new UserService());
+      context.setAttribute("authorService", new AuthorService());
+
     } catch (Exception e) {
       logger.severe("Initialization failed: " + e.getMessage());
       throw new RuntimeException("Application initialization failed", e);

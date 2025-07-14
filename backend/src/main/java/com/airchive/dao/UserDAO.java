@@ -1,6 +1,9 @@
 package com.airchive.dao;
 
 import com.airchive.model.User;
+import com.airchive.model.User.UserRole;
+import com.airchive.model.User.UserStatus;
+import com.airchive.util.ApplicationContextProvider;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,58 +16,37 @@ import javax.servlet.ServletContext;
 import javax.sql.DataSource;
 
 /**
- * UserDAO is responsible for performing CRUD operations on the "User" table in the database.
- * It provides methods to save, update, and retrieve User records, as well as utility
- * methods to check for the existence of usernames or emails.
+ * Data Access Object (DAO) class for managing the persistence and retrieval of
+ * {@code User} objects in a database. Provides methods for creating, updating,
+ * deleting, and querying user records.ty.
  */
 public class UserDAO {
   private static final Logger logger = Logger.getLogger(UserDAO.class.getName());
   private final DataSource dataSource;
 
-  // SQL Constants
-  private static final String INSERT_USER =
-      "INSERT INTO user (username, first_name, last_name, email, password_hash, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-
-  private static final String SELECT_USER_BY_ID =
-      "SELECT * FROM user WHERE user_id = ?";
-
-  private static final String SELECT_USER_BY_USERNAME =
-      "SELECT * FROM user WHERE username = ?";
-
-  private static final String SELECT_USER_BY_EMAIL =
-      "SELECT * FROM user WHERE email = ?";
-
-  private static final String UPDATE_USER =
-      "UPDATE user SET username = ?, first_name = ?, last_name = ?, email = ?, password_hash = ?, role = ?, status = ? WHERE user_id = ?";
-
-  private static final String DELETE_USER =
-      "DELETE FROM user WHERE user_id = ?";
-
-  private static final String EXISTS_BY_USERNAME =
-      "SELECT EXISTS(SELECT 1 FROM user WHERE username = ?)";
-
-  private static final String EXISTS_BY_EMAIL =
-      "SELECT EXISTS(SELECT 1 FROM user WHERE email = ?)";
-
-
-  public UserDAO(DataSource dataSource) {
-    this.dataSource = dataSource;
-    if (this.dataSource == null) {
-      throw new IllegalStateException("DataSource cannot be null");
-    }
+  public UserDAO() {
+    ServletContext context = ApplicationContextProvider.getServletContext();
+    this.dataSource = (DataSource) context.getAttribute("dataSource");
   }
 
-  public UserDAO(ServletContext context) {
-    this((DataSource) context.getAttribute("dataSource"));
-  }
-
+  /**
+   * Creates a new user record in the database based on the provided User object.
+   * The user must be a new instance (not yet persisted in the database).
+   *
+   * @param user the User object containing the details to be persisted in the database
+   * @return the User object after a successful insertion, including the generated user ID
+   * @throws SQLException if a database access error occurs or the creation operation fails
+   * @throws IllegalArgumentException if the user is not new (already persisted in the database)
+   */
   public User create(User user) throws SQLException {
     if (!user.isNew()) {
-      throw new IllegalArgumentException("User already exists in database");
+      throw new IllegalArgumentException("User is already in database");
     }
+    String sql = "INSERT INTO user (username, first_name, last_name, email, password_hash, role, "
+        + "status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
     try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(INSERT_USER, PreparedStatement.RETURN_GENERATED_KEYS)) {
+        PreparedStatement stmt = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
       stmt.setString(1, user.getUsername());
       stmt.setString(2, user.getFirstName());
@@ -93,13 +75,25 @@ public class UserDAO {
     }
   }
 
+  /**
+   * Updates an existing user in the database with the provided user details.
+   * Ensures the user has a valid ID before proceeding.
+   *
+   * @param user the User object containing updated details to be stored in the database
+   * @return the User object after a successful update
+   * @throws SQLException if a database access error occurs or the update fails
+   * @throws IllegalArgumentException if the user is null or does not have a valid ID
+   */
   public User update(User user) throws SQLException {
     if (user.isNew()) {
       throw new IllegalArgumentException("User is null or does not exist in database");
     }
 
+    String sql = "UPDATE user SET username = ?, first_name = ?, last_name = ?, email = ?, "
+        + "password_hash = ?, role = ?, status = ? WHERE user_id = ?";
+
     try (Connection conn = dataSource.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(UPDATE_USER)) {
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
 
       stmt.setString(1, user.getUsername());
       stmt.setString(2, user.getFirstName());
@@ -120,28 +114,90 @@ public class UserDAO {
     }
   }
 
+  /**
+   * Deletes a user from the database based on their unique identifier.
+   *
+   * @param userId the unique identifier of the user to be deleted
+   * @return true if the user was successfully deleted, false otherwise
+   * @throws SQLException if any SQL error occurs while executing the delete operation
+   */
+  public boolean delete(int userId) throws SQLException {
+    String sql = "DELETE FROM user WHERE user_id = ?";
+    try (Connection conn = dataSource.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+      stmt.setInt(1, userId);
+      return stmt.executeUpdate() > 0;
+    }
+  }
+
+  /**
+   * Retrieves a user from the database based on their unique identifier.
+   *
+   * @param userId the unique identifier of the user to be retrieved
+   * @return an Optional containing the User if a user with the given ID is found,
+   *         or an empty Optional if no such user exists
+   */
   public Optional<User> findById(Integer userId) {
-    return getUserByField(SELECT_USER_BY_ID, userId.toString());
+    String sql = "SELECT * FROM user WHERE user_id = ?";
+    return getUserByField(sql, userId.toString());
   }
 
+  /**
+   * Retrieves a user from the database based on their username.
+   *
+   * @param username the username of the user to be retrieved
+   * @return an Optional containing the User if a user with the given username is found,
+   *         or an empty Optional if no such user exists
+   */
   public Optional<User> findByUsername(String username) {
-    return getUserByField(SELECT_USER_BY_USERNAME, username);
+    String sql = "SELECT * FROM user WHERE username = ?";
+    return getUserByField(sql, username);
   }
 
+  /**
+   * Retrieves a user from the database based on their email address.
+   *
+   * @param email the email address of the user to be retrieved
+   * @return an Optional containing the User if a user with the given email address is found,
+   *         or an empty Optional if no such user exists
+   */
   public Optional<User> findByEmail(String email) {
-    return getUserByField(SELECT_USER_BY_EMAIL, email);
+    String sql = "SELECT * FROM user WHERE email = ?";
+    return getUserByField(sql, email);
   }
 
+  /**
+   * Checks if a username exists in the database.
+   *
+   * @param username the username to check for existence
+   * @return true if the username exists in the database, false otherwise
+   */
   public boolean existsByUsername(String username) {
-    return checkExistence(EXISTS_BY_USERNAME, username);
+    String sql = "SELECT EXISTS(SELECT 1 FROM user WHERE username = ?)";
+    return checkExistence(sql, username);
   }
 
+  /**
+   * Checks if an email address exists in the database.
+   *
+   * @param email the email address to check for existence
+   * @return true if the email exists in the database, false otherwise
+   */
   public boolean existsByEmail(String email) {
-    return checkExistence(EXISTS_BY_EMAIL, email);
+    String sql = "SELECT EXISTS(SELECT 1 FROM user WHERE email = ?)";
+    return checkExistence(sql, email);
   }
 
   // Private helper methods
 
+  /**
+   * Retrieves a user from the database based on a specific field and its value.
+   *
+   * @param sql the SQL query string to execute, expecting a result that maps to a User
+   * @param param the parameter value to be used in the SQL query for filtering results
+   * @return an Optional containing the User if found, or an empty Optional if not found
+   */
   private Optional<User> getUserByField(String sql, String param) {
     try (Connection conn = dataSource.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -150,7 +206,7 @@ public class UserDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(extractUser(rs));
+          return Optional.of(mapRow(rs));
         }
       }
     } catch (SQLException e) {
@@ -159,6 +215,13 @@ public class UserDAO {
     return Optional.empty();
   }
 
+  /**
+   * Checks the existence of a record in the database based on the provided SQL query and parameter.
+   *
+   * @param sql the SQL query to execute, which should return a single boolean column indicating existence
+   * @param param the parameter value to be used in the SQL query
+   * @return true if the record exists, false otherwise
+   */
   private boolean checkExistence(String sql, String param) {
     try (Connection conn = dataSource.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -176,17 +239,24 @@ public class UserDAO {
     return false;
   }
 
-  private User extractUser(ResultSet rs) throws SQLException {
-    User user = new User();
-    user.setUserId(rs.getInt("user_id"));
-    user.setUsername(rs.getString("username"));
-    user.setFirstName(rs.getString("first_name"));
-    user.setLastName(rs.getString("last_name"));
-    user.setEmail(rs.getString("email"));
-    user.setPasswordHash(rs.getString("password_hash"));
-    user.setRole(User.Role.valueOf(rs.getString("role")));
-    user.setStatus(User.Status.valueOf(rs.getString("status")));
-    user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-    return user;
+  /**
+   * Maps a row from the given ResultSet to a User object.
+   *
+   * @param rs the ResultSet containing the row data to be mapped
+   * @return a User object populated with data from the current row of the ResultSet
+   * @throws SQLException if an SQL error occurs while accessing the ResultSet
+   */
+  private User mapRow(ResultSet rs) throws SQLException {
+    return new User(
+        rs.getInt("user_id"),
+        rs.getString("username"),
+        rs.getString("first_name"),
+        rs.getString("last_name"),
+        rs.getString("email"),
+        rs.getString("password_hash"),
+        UserRole.valueOf(rs.getString("role")),
+        UserStatus.valueOf(rs.getString("status")),
+        rs.getTimestamp("created_at").toLocalDateTime()
+    );
   }
 }

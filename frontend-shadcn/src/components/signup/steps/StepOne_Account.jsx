@@ -37,6 +37,8 @@ export default function StepOne({ formData, updateField, next }) {
   })
 
   const debouncers = useRef({})
+  const REQUIRED_FIELDS = FIELDS.map((f) => f.name)
+  const isFormValid = REQUIRED_FIELDS.every((field) => validFields[field])
 
   const validateWithBackend = async (field, value, values) => {
     const payload = { field, value }
@@ -97,18 +99,9 @@ export default function StepOne({ formData, updateField, next }) {
   }
 
   const onSubmit = async (values) => {
-    const required = [
-      "firstName",
-      "lastName",
-      "username",
-      "email",
-      "password",
-      "confirmPassword",
-    ]
-
     let allValid = true
 
-    for (const field of required) {
+    for (const field of REQUIRED_FIELDS) {
       const value = values[field]
       if (!value.trim()) {
         allValid = false
@@ -171,7 +164,6 @@ export default function StepOne({ formData, updateField, next }) {
                                     const value = e.target.value
                                     field.onChange(e)
 
-                                    // revalidate confirmPassword when password changes
                                     if (
                                         name === "password" &&
                                         form.getValues("confirmPassword")
@@ -195,7 +187,7 @@ export default function StepOne({ formData, updateField, next }) {
                                         ? "border-destructive focus-visible:ring-destructive"
                                         : isValid
                                             ? "border-[var(--chart-2)] focus-visible:ring-[var(--chart-2)]"
-                                            : ""
+                                            : "focus-visible:ring-0"
                                   }
                               />
                               {type === "password" && (
@@ -225,7 +217,11 @@ export default function StepOne({ formData, updateField, next }) {
               />
           ))}
 
-          <Button type="submit" className="w-full">
+          <Button
+              type="submit"
+              className={`w-full ${!isFormValid ? "opacity-50 cursor-not-allowed" : ""}`}
+              disabled={!isFormValid}
+          >
             Next
           </Button>
         </form>

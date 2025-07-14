@@ -1,7 +1,6 @@
-// src/components/Navbar.jsx
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/ui/ThemeToggle"
+import { ThemeToggle } from "@/components/ThemeToggle.jsx"
 
 export default function Navbar({ isAuthenticated, onLogout }) {
   return (

@@ -1,4 +1,3 @@
-// src/pages/SignupPage.jsx
 import MultiStepSignup from "@/components/signup/MultiStepSignup"
 import { GalleryVerticalEnd } from "lucide-react"
 import { Button } from "@/components/ui/button"

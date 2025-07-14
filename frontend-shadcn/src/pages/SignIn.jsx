@@ -1,4 +1,3 @@
-// src/pages/SignIn.jsx
 import { Button } from "@/components/ui/button"
 
 export default function SignIn({ onLogin }) {

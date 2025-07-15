@@ -16,9 +16,8 @@ import javax.servlet.ServletContext;
 import javax.sql.DataSource;
 
 /**
- * Data Access Object (DAO) class for managing the persistence and retrieval of
- * {@code User} objects in a database. Provides methods for creating, updating,
- * deleting, and querying user records.ty.
+ * DAO class for managing operations related to the {@link User} entity.
+ * Provides methods to perform CRUD functionalities for the user table in the database.
  */
 public class UserDAO {
   private static final Logger logger = Logger.getLogger(UserDAO.class.getName());

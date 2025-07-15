@@ -16,6 +16,10 @@ import java.util.List;
 import java.util.Optional;
 import javax.servlet.ServletContext;
 
+/**
+ * Service class responsible for handling operations related to author requests.
+ * Communicates with the data access layer to manage requests from users who want to become authors.
+ */
 public class AuthorRequestService {
   private final AuthorRequestDAO authorRequestDAO;
   private final AuthorService authorService;

@@ -216,64 +216,28 @@ public class UserService {
     return persistUpdate(user);
   }
 
-  /**
-   * Updates the role of a user identified by the provided user ID.
-   * Validates the new role string to ensure it corresponds to a valid role.
-   *
-   * @param userId the unique identifier of the user whose role is to be updated
-   * @param newRoleString the new role to assign to the user, must be one of READER, AUTHOR, or ADMIN
-   * @return the updated User object with the new role assigned
-   * @throws UserNotFoundException if no user is found with the specified userId
-   * @throws ValidationException if the provided newRoleString is null, empty, or invalid
-   * @throws FailedOperationException if the update operation fails
-   */
-  public User updateRole(Integer userId, String newRoleString) throws UserNotFoundException,
-      ValidationException, FailedOperationException {
-    if (newRoleString == null || newRoleString.trim().isEmpty()) {
-      throw new ValidationException("Please choose a role.");
-    }
-
-    UserRole userRole;
-    try {
-      userRole = UserRole.valueOf(newRoleString.trim().toUpperCase());
-    } catch (IllegalArgumentException e) {
-      throw new ValidationException("Invalid role. Must be READER, AUTHOR, or ADMIN.");
-    }
-
-    User user = userDAO.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found."));
-    user.setRole(userRole);
-    return persistUpdate(user);
+  public User changeRoleToAdmin(int userId) throws UserNotFoundException, FailedOperationException {
+    return changeRole(userId, UserRole.ADMIN);
   }
 
-  /**
-   * Updates the status of an existing user to the specified new status.
-   * This method validates the provided status string, ensures that the
-   * user exists, and persists the status update.
-   *
-   * @param userId The unique identifier of the user whose status is to be updated. Must not be null.
-   * @param newStatusString The new status to assign to the user. Accepted values are "ACTIVE",
-   *                        "SUSPENDED", or "DELETED". Must not be null or empty.
-   * @return The updated {@code User} object with the newly assigned status.
-   * @throws UserNotFoundException If no user is found with the given userId.
-   * @throws ValidationException If the provided status string is null, empty, or invalid.
-   * @throws FailedOperationException If an error occurs while persisting the updated status.
-   */
-  public User updateStatus(Integer userId, String newStatusString) throws UserNotFoundException,
-      ValidationException, FailedOperationException {
-    if (newStatusString == null || newStatusString.trim().isEmpty()) {
-      throw new ValidationException("Please choose a status.");
-    }
+  public User changeRoleToAuthor(int userId) throws UserNotFoundException, FailedOperationException {
+    return changeRole(userId, UserRole.AUTHOR);
+  }
 
-    UserStatus userStatus;
-    try {
-      userStatus = UserStatus.valueOf(newStatusString.trim().toUpperCase());
-    } catch (IllegalArgumentException e) {
-      throw new ValidationException("Invalid status. Must be ACTIVE, SUSPENDED, or DELETED.");
-    }
+  public User changeRoleToReader(int userId) throws UserNotFoundException, FailedOperationException {
+    return changeRole(userId, UserRole.READER);
+  }
 
-    User user = userDAO.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found."));
-    user.setStatus(userStatus);
-    return persistUpdate(user);
+  public User activateUser(int userId) throws UserNotFoundException, FailedOperationException {
+    return changeStatus(userId, UserStatus.ACTIVE);
+  }
+
+  public User suspendUser(int userId) throws UserNotFoundException, FailedOperationException {
+    return changeStatus(userId, UserStatus.SUSPENDED);
+  }
+
+  public User deleteUser(int userId) throws UserNotFoundException, FailedOperationException {
+    return changeStatus(userId, UserStatus.DELETED);
   }
 
   /**
@@ -465,5 +429,19 @@ public class UserService {
     }
 
     authorService.syncWithUser(user);
+  }
+
+  private User changeRole(int userId, UserRole newRole) throws UserNotFoundException, FailedOperationException {
+    User user = userDAO.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found."));
+    user.setRole(newRole);
+    return persistUpdate(user);
+  }
+
+  private User changeStatus(int userId, UserStatus status)
+      throws UserNotFoundException, FailedOperationException {
+    User user = userDAO.findById(userId)
+        .orElseThrow(() -> new UserNotFoundException("User not found."));
+    user.setStatus(status);
+    return persistUpdate(user);
   }
 }

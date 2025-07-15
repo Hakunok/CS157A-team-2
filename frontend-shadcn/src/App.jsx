@@ -11,20 +11,21 @@ function App() {
 
   const handleLogin = () => setIsAuthenticated(true)
   const handleLogout = () => {
-    localStorage.removeItem("token")
     setIsAuthenticated(false)
   }
 
   return (
       <Router>
-        <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
-        <div className="p-4">
-          <Routes>
-            <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
-            <Route path="/signin" element={<SignIn onLogin={handleLogin} />} />
-            <Route path="/signup" element={<SignUpPage onLogin={handleLogin} />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-          </Routes>
+        <div className="flex flex-col h-screen">
+          <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+          <main className="flex-grow overflow-y-auto">
+            <Routes>
+              <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
+              <Route path="/signin" element={<SignIn onLogin={handleLogin} />} />
+              <Route path="/signup" element={<SignUpPage />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+            </Routes>
+          </main>
         </div>
       </Router>
   )

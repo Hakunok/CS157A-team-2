@@ -4,6 +4,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+/**
+ * Utility class to load and provide access to application properties.
+ * This class reads properties from a predefined file located in the classpath
+ * and makes them available via static methods.
+ *
+ * The properties file name is expected to be "db.properties" and should exist
+ * in the classpath. If the file is not found or fails to load, the class throws
+ * a RuntimeException during initialization.
+ */
 public class PropertyLoader {
   private static Properties properties = new Properties();
   private static final String PROPERTIES_FILE_NAME = "db.properties";

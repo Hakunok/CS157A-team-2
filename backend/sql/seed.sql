@@ -24,17 +24,17 @@ INSERT INTO Administrator (username, email, password_hash) VALUES
 ('supervisor1', 'supervisor1@airchive.admin', 'hash_pass'),
 ('supervisor2', 'supervisor2@airchive.admin', 'hash_pass');
 
-INSERT INTO Topic (topic_code, name) VALUES
-('ai.ET', 'AI Ethics'),
-('ai.QC', 'Quantum Computing'),
-('ai.CV', 'Computer Vision'),
-('ai.NLP', 'Natural Language Processing'),
-('ai.NS', 'Neuroscience'),
-('ai.CBS', 'Cybersecurity'),
-('ai.BCT', 'Blockchain Technology'),
-('ai.AP', 'Astrophysics'),
-('ai.BT', 'Biotech'),
-('ai.GAI', 'Generative AI');
+INSERT INTO Topic (code, name) VALUES
+('ET', 'AI Ethics'),
+('QC', 'Quantum Computing'),
+('CV', 'Computer Vision'),
+('NLP', 'Natural Language Processing'),
+('NS', 'Neuroscience'),
+('CBS', 'Cybersecurity'),
+('BCT', 'Blockchain Technology'),
+('AP', 'Astrophysics'),
+('BT', 'Biotech'),
+('GAI', 'Generative AI');
 
 INSERT INTO Author (first_name, last_name, bio, is_verified, user_id) VALUES
 ('Gon', 'Freecss', 'Son of Ging, rookie AI researcher', TRUE, 11),

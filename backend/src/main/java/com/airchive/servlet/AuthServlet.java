@@ -1,15 +1,12 @@
 package com.airchive.servlet;
 
+import com.airchive.dto.LoginRequest;
+import com.airchive.dto.RegisterRequest;
 import com.airchive.exception.UserAlreadyExistsException;
 import com.airchive.exception.ValidationException;
 import com.airchive.model.User;
 import com.airchive.service.UserService;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
+import com.airchive.util.JsonUtil;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -17,131 +14,94 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @WebServlet("/api/auth/*")
 public class AuthServlet extends HttpServlet {
-
   private UserService userService;
 
-  private final Gson gson = new GsonBuilder()
-      .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
-      .create();
-
-  private static class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-
-    @Override
-    public void write(JsonWriter out, LocalDateTime value) throws IOException {
-      if (value == null) {
-        out.nullValue();
-      } else {
-        out.value(FORMATTER.format(value));
-      }
-    }
-
-    @Override
-    public LocalDateTime read(JsonReader in) throws IOException {
-      if (in.peek() == com.google.gson.stream.JsonToken.NULL) {
-        in.nextNull();
-        return null;
-      }
-      return LocalDateTime.parse(in.nextString(), FORMATTER);
-    }
-  }
 
   @Override
   public void init() throws ServletException {
     this.userService = (UserService) getServletContext().getAttribute("userService");
-    if (this.userService == null) {
-      log("FATAL: UserService not found in ServletContext.");
-      throw new ServletException("UserService not found in ServletContext.");
-    }
   }
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String pathInfo = req.getPathInfo();
-    resp.setContentType("application/json");
-    resp.setCharacterEncoding("UTF-8");
+    if (pathInfo == null) {
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found.");
+      return;
+    }
 
-    try {
-      switch (pathInfo) {
-        case "/register":
-          handleRegister(req, resp);
-          break;
-        case "/login":
-          handleLogin(req, resp);
-          break;
-        case "/logout":
-          handleLogout(req, resp);
-          break;
-        default:
-          resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-      }
-    } catch (Exception e) {
-      log("AuthServlet Error: An unexpected error occurred in doPost.", e);
-      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An unexpected error occurred on the server.");
+    switch (pathInfo) {
+      case "/register" -> handleRegister(req, resp);
+      case "/login" -> handleLogin(req, resp);
+      case "/logout" -> handleLogout(req, resp);
+      default -> JsonUtil.sendJsonError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found.");
     }
   }
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    String pathInfo = req.getPathInfo();
-    resp.setContentType("application/json");
-    resp.setCharacterEncoding("UTF-8");
-
-    if ("/status".equals(pathInfo)) {
+    if ("/status".equals(req.getPathInfo())) {
       handleStatus(req, resp);
     } else {
-      resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found.");
     }
   }
 
   private void handleRegister(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     try {
-      JsonObject registrationData = gson.fromJson(req.getReader(), JsonObject.class);
-
-      if (registrationData == null) {
-        resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Empty registration data received.");
+      RegisterRequest data = JsonUtil.read(req, RegisterRequest.class);
+      if (data == null) {
+        JsonUtil.sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON format or missing data.");
         return;
       }
 
-      String plainPassword = registrationData.get("password").getAsString();
-
-      User newUser = userService.registerNewUser(
-          registrationData.get("username").getAsString(),
-          registrationData.get("firstName").getAsString(),
-          registrationData.get("lastName").getAsString(),
-          registrationData.get("email").getAsString(),
-          plainPassword
+      User user = userService.registerNewUser(
+          data.username(), data.firstName(), data.lastName(), data.email(), data.password()
       );
 
-      HttpSession session = req.getSession(true);
-      session.setAttribute("user", newUser);
+      HttpSession oldSession = req.getSession(false);
+      if (oldSession != null) {
+        oldSession.invalidate();
+      }
+      HttpSession newSession = req.getSession(true);
+      newSession.setAttribute("user", user);
 
-      resp.setStatus(HttpServletResponse.SC_CREATED);
-      resp.getWriter().write(gson.toJson(newUser));
-
+      JsonUtil.sendJson(resp, HttpServletResponse.SC_CREATED, user);
     } catch (ValidationException | UserAlreadyExistsException e) {
-      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      resp.getWriter().write(gson.toJson(Map.of("message", e.getMessage())));
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+    } catch (Exception e) {
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An unexpected error occurred during registration.");
     }
   }
 
-  private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException, ValidationException {
-    JsonObject loginData = gson.fromJson(req.getReader(), JsonObject.class);
-    String usernameOrEmail = loginData.get("usernameOrEmail").getAsString();
-    String password = loginData.get("password").getAsString();
 
-    User user = userService.authenticateUser(usernameOrEmail, password);
+  private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    try {
+      LoginRequest data = JsonUtil.read(req, LoginRequest.class);
+      if (data == null) {
+        JsonUtil.sendJsonError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON format or missing data.");
+        return;
+      }
 
-    HttpSession session = req.getSession(true);
-    session.setAttribute("user", user);
+      User user = userService.authenticateUser(data.usernameOrEmail(), data.password());
 
-    resp.getWriter().write(gson.toJson(user));
+      HttpSession oldSession = req.getSession(false);
+      if (oldSession != null) {
+        oldSession.invalidate();
+      }
+      HttpSession newSession = req.getSession(true);
+      newSession.setAttribute("user", user);
+
+      JsonUtil.sendJson(resp, HttpServletResponse.SC_OK, user);
+    } catch (ValidationException e) {
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+    } catch (Exception e) {
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An unexpected error occurred during login.");
+    }
   }
 
   private void handleLogout(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -149,16 +109,15 @@ public class AuthServlet extends HttpServlet {
     if (session != null) {
       session.invalidate();
     }
-    resp.getWriter().write(gson.toJson(Map.of("message", "Logged out successfully")));
+    JsonUtil.sendJson(resp, HttpServletResponse.SC_OK, Map.of("message", "Logged out successfully"));
   }
 
   private void handleStatus(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     HttpSession session = req.getSession(false);
     if (session != null && session.getAttribute("user") != null) {
-      User user = (User) session.getAttribute("user");
-      resp.getWriter().write(gson.toJson(user));
+      JsonUtil.sendJson(resp, HttpServletResponse.SC_OK, session.getAttribute("user"));
     } else {
-      resp.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+      JsonUtil.sendJsonError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated.");
     }
   }
 }

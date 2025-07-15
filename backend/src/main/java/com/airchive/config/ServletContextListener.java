@@ -1,9 +1,15 @@
 package com.airchive.config;
 
 import com.airchive.dao.AuthorDAO;
+import com.airchive.dao.AuthorRequestDAO;
+import com.airchive.dao.TopicDAO;
+import com.airchive.dao.TopicInteractionDAO;
 import com.airchive.dao.UserDAO;
 import com.airchive.datasource.DriverManagerDataSource;
+import com.airchive.service.AuthorRequestService;
 import com.airchive.service.AuthorService;
+import com.airchive.service.TopicInteractionService;
+import com.airchive.service.TopicService;
 import com.airchive.service.UserService;
 import com.airchive.util.ApplicationContextProvider;
 import java.io.File;
@@ -46,13 +52,21 @@ public class ServletContextListener implements javax.servlet.ServletContextListe
       // Setup DataSource
       context.setAttribute("dataSource", new DriverManagerDataSource());
 
-      // Setup DAOs
+      // Setup DAOs & Services
       context.setAttribute("userDAO", new UserDAO());
-      context.setAttribute("authorDAO", new AuthorDAO());
-
-      // Setup Services
       context.setAttribute("userService", new UserService());
+
+      context.setAttribute("authorDAO", new AuthorDAO());
       context.setAttribute("authorService", new AuthorService());
+
+      context.setAttribute("authorRequestDAO", new AuthorRequestDAO());
+      context.setAttribute("authorRequestService", new AuthorRequestService());
+
+      context.setAttribute("topicDAO", new TopicDAO());
+      context.setAttribute("topicService", new TopicService());
+
+      context.setAttribute("topicInteractionDAO", new TopicInteractionDAO());
+      context.setAttribute("topicInteractionService", new TopicInteractionService());
 
     } catch (Exception e) {
       logger.severe("Initialization failed: " + e.getMessage());

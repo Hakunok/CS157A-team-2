@@ -11,7 +11,6 @@ import javax.sql.DataSource;
 
 /**
  * DataSource implementation using DriverManager.
- * Implemented DataSource, just so it's easy to switch between this and HikariCP
  */
 public class DriverManagerDataSource implements DataSource {
   private String driver;

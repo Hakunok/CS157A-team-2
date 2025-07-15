@@ -1,6 +1,5 @@
 import MultiStepSignup from "@/components/signup/MultiStepSignup"
 import { GalleryVerticalEnd } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { useNavigate } from "react-router-dom"
 
 export default function SignupPage() {

@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.Optional;
 import javax.servlet.ServletContext;
 
+/**
+ * Service class responsible for managing operations related to authors.
+ * This class provides methods for creating, retrieving, updating, and deleting author profiles,
+ * as well as linking authors to users and synchronizing author information with user data.
+ */
 public class AuthorService {
   private final AuthorDAO authorDAO;
 

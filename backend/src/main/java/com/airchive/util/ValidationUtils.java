@@ -4,7 +4,11 @@ package com.airchive.util;
 import java.util.regex.Pattern;
 
 /**
- * Utility class providing static methods for validating email and username inputs.
+ * Utility class for validating input data such as email, username, name, and password.
+ * This class contains static methods that are used to perform validations
+ * based on predefined patterns or rules for different input types.
+ *
+ * The utility is designed to prevent instantiation by having a private constructor.
  */
 public class ValidationUtils {
   private static final Pattern EMAIL_PATTERN =

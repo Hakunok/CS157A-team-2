@@ -1,9 +1,10 @@
 package com.airchive.servlet;
 
+import com.airchive.dto.ValidationRequest;
+import com.airchive.dto.ValidationResponse;
 import com.airchive.service.UserService;
-import com.google.gson.Gson;
+import com.airchive.util.JsonUtil;
 import java.io.IOException;
-import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -13,70 +14,36 @@ import javax.servlet.http.HttpServletResponse;
 @WebServlet("/api/users/validate")
 public class ValidationServlet extends HttpServlet {
   private UserService userService;
-  private Gson gson = new Gson();
 
   @Override
   public void init() throws ServletException {
     this.userService = (UserService) getServletContext().getAttribute("userService");
-
     if (this.userService == null) {
-      throw new ServletException("UserService not found.");
+      throw new ServletException("UserService not found in ServletContext. It must be initialized in a ServletContextListener.");
     }
   }
 
   @Override
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    ValidationRequest validationReq = gson.fromJson(req.getReader(), ValidationRequest.class);
+    ValidationRequest request = JsonUtil.read(req, ValidationRequest.class);
 
-    String field = validationReq.getField();
-    String value = validationReq.getValue();
-
-    // Get the password for confirmPassword validation
-    String passwordForConfirmation = null;
-    if ("confirmPassword".equals(field)) {
-      Map<String, String> extra = validationReq.getExtra();
-      if (extra != null) {
-        passwordForConfirmation = extra.get("password");
-      }
-
-      // If no password provided for confirmation, return error
-      if (passwordForConfirmation == null || passwordForConfirmation.trim().isEmpty()) {
-        resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        resp.setContentType("application/json");
-        resp.setCharacterEncoding("UTF-8");
-        resp.getWriter().write(gson.toJson(Map.of("isValid", false, "message", "Password is required first")));
-        return;
-      }
+    if (request == null || request.field() == null || request.value() == null) {
+      JsonUtil.sendJson(resp, HttpServletResponse.SC_BAD_REQUEST,
+          new ValidationResponse(false, "Invalid request payload: 'field' and 'value' are required."));
+      return;
     }
 
-    String errorMessage = userService.validateField(field, value, passwordForConfirmation);
+    String password = null;
+    if (request.extra() != null) {
+      password = request.extra().get("password");
+    }
 
-    resp.setContentType("application/json");
-    resp.setCharacterEncoding("UTF-8");
+    String error = userService.validateField(request.field(), request.value(), password);
 
-    if (errorMessage == null) {
-      resp.getWriter().write(gson.toJson(Map.of("isValid", true)));
+    if (error == null) {
+      JsonUtil.sendJson(resp, HttpServletResponse.SC_OK, new ValidationResponse(true, null));
     } else {
-      resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      resp.getWriter().write(gson.toJson(Map.of("isValid", false, "message", errorMessage)));
-    }
-  }
-
-  private static class ValidationRequest {
-    private String field;
-    private String value;
-    private Map<String, String> extra;
-
-    public String getField() {
-      return field;
-    }
-
-    public String getValue() {
-      return value;
-    }
-
-    public Map<String, String> getExtra() {
-      return extra;
+      JsonUtil.sendJson(resp, HttpServletResponse.SC_OK, new ValidationResponse(false, error));
     }
   }
 }

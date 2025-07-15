@@ -15,6 +15,10 @@ import java.util.Optional;
 import javax.servlet.ServletContext;
 import javax.sql.DataSource;
 
+/**
+ * DAO class for managing operations related to the {@link AuthorRequest} entity.
+ * Provides methods to perform CRUD functionalities for the author_request table in the database.
+ */
 public class AuthorRequestDAO {
   private final DataSource dataSource;
 

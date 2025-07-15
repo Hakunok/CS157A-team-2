@@ -1,6 +1,7 @@
 package com.airchive.dao;
 
 import com.airchive.model.Author;
+import com.airchive.model.Topic;
 import com.airchive.util.ApplicationContextProvider;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,9 +18,8 @@ import javax.servlet.ServletContext;
 import javax.sql.DataSource;
 
 /**
- * A Data Access Object (DAO) for managing `Author` entities in a persistent storage.
- * This class provides methods to perform Create, Read, Update, and Delete (CRUD)
- * operations on the `author` database table.
+ * DAO class for managing operations related to the {@link Author} entity.
+ * Provides methods to perform CRUD functionalities for the author table in the database.
  */
 public class AuthorDAO {
   private final DataSource dataSource;

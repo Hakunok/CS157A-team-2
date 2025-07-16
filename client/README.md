@@ -17,7 +17,7 @@ https://nodejs.org/en
 Make sure you have the backend Tomcat server running.
 
 ```
-cd frontend-shadcn/
+cd client/
 npm install
 npm run dev
 ```

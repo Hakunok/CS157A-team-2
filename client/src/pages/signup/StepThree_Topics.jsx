@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table.jsx"
 import { AlertCircle, Check, Loader2, ListPlus } from "lucide-react"
 
-const API_BASE_URL = "http://localhost:8080/airchive_war_exploded/api"
+const API_BASE_URL = "http://localhost:8080/server_war_exploded/api"
 
 export default function StepThree_Topics({ onComplete }) {
   const [topics, setTopics] = useState([])

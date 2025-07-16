@@ -24,7 +24,7 @@ const FIELDS = [
   { name: "confirmPassword", label: "Confirm Password", type: "password" },
 ]
 
-const API_BASE_URL = "http://localhost:8080/airchive_war_exploded/api"
+const API_BASE_URL = "http://localhost:8080/server_war_exploded/api"
 
 export default function StepOne({ formData, updateField, next }) {
   const [visibilities, setVisibilities] = useState({

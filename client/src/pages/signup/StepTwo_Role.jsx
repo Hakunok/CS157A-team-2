@@ -27,7 +27,7 @@ export default function StepTwo_Role({ formData, updateField, next, skip }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
 
-  const API_BASE_URL = "http://localhost:8080/airchive_war_exploded/api"
+  const API_BASE_URL = "http://localhost:8080/server_war_exploded/api"
 
   const handleAdminPasswordSubmit = async () => {
     setIsVerifying(true)

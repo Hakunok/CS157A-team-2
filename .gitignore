@@ -4,6 +4,7 @@ target/
 !**/src/test/**/target/
 
 ### IntelliJ IDEA ###
+*/.idea/
 /.idea/
 .idea/modules.xml
 .idea/jarRepositories.xml
@@ -43,4 +44,4 @@ build/
 *.log
 
 # Private DB Configuration
-src/main/resources/db.properties
+*/src/main/resources/db.properties

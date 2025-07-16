@@ -1,5 +1,3 @@
-[refactor/split-frontend-backend](https://github.com/Hakunok/CS157A-team-2/tree/refactor/split-frontend-backend) has the latest commits.
-
 ### notes
 
 right now our multi step db operations are not atomic transactions. we do these operations with different connections so right now it's not an atomic transaction. we'll change this going forward.
@@ -21,3 +19,5 @@ db.username=root
 db.password=password
 db.database=database_name
 ```
+
+see client README for instructions on setting up frontend dev env

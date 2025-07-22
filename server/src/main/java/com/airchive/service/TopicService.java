@@ -1,51 +1,87 @@
 package com.airchive.service;
 
-import com.airchive.dao.TopicDAO;
-import com.airchive.exception.FailedOperationException;
-import com.airchive.model.Topic;
-import com.airchive.util.AppContextProvider;
-import java.sql.SQLException;
+import com.airchive.dto.CreateOrUpdateTopicRequest;
+import com.airchive.dto.TopicResponse;
+import com.airchive.entity.Topic;
+import com.airchive.exception.EntityNotFoundException;
+import com.airchive.exception.PersistenceException;
+import com.airchive.exception.ValidationException;
+import com.airchive.repository.TopicRepository;
+
 import java.util.List;
-import javax.servlet.ServletContext;
+import java.util.stream.Collectors;
 
 public class TopicService {
-  private final TopicDAO topicDAO;
 
-  public TopicService() {
-    ServletContext context = AppContextProvider.getServletContext();
-    this.topicDAO = (TopicDAO) context.getAttribute("topicDAO");
+  private final TopicRepository topicRepository;
+
+  public TopicService(TopicRepository topicRepository) {
+    this.topicRepository = topicRepository;
   }
 
-  public Topic createTopic(String code, String name, String colorHex) throws FailedOperationException {
+  /**
+   * Get all topics
+   */
+  public List<TopicResponse> getAllTopics() {
+    return topicRepository.findAll().stream()
+        .map(TopicResponse::from)
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Search topics by name or code
+   */
+  public List<TopicResponse> search(String query) {
+    return topicRepository.search(query).stream()
+        .map(TopicResponse::from)
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Get one topic by ID
+   */
+  public TopicResponse getById(int topicId) {
+    Topic topic = topicRepository.findById(topicId)
+        .orElseThrow(() -> new EntityNotFoundException("Topic not found."));
+    return TopicResponse.from(topic);
+  }
+
+  /**
+   * Create a new topic
+   */
+  public TopicResponse createTopic(CreateOrUpdateTopicRequest req) throws ValidationException {
+    validateRequest(req);
+
     try {
-      return topicDAO.create(new Topic(code, name, colorHex));
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to create topic.", e);
+      Topic topic = topicRepository.create(req.code(), req.fullName(), req.colorHex());
+      return TopicResponse.from(topic);
+    } catch (Exception e) {
+      throw new PersistenceException("Failed to create topic. It may already exist.");
     }
   }
 
-  public Topic getTopicByCode(String code) throws FailedOperationException {
-    try {
-      return topicDAO.findByCode(code)
-          .orElseThrow(() -> new FailedOperationException("Topic not found."));
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve topic.", e);
-    }
+  /**
+   * Update an existing topic
+   */
+  public TopicResponse updateTopic(int topicId, CreateOrUpdateTopicRequest req)
+      throws ValidationException {
+    validateRequest(req);
+
+    Topic topic = topicRepository.update(topicId, req.code(), req.fullName(), req.colorHex());
+    return TopicResponse.from(topic);
   }
 
-  public List<Topic> getAllTopics() throws FailedOperationException {
-    try {
-      return topicDAO.findAll();
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve all topics.", e);
+  private void validateRequest(CreateOrUpdateTopicRequest req) throws ValidationException {
+    if (req.code() == null || req.code().isBlank() || req.code().length() > 10) {
+      throw new ValidationException("Code must be 1–10 characters.");
     }
-  }
 
-  public List<Topic> searchTopics(String query) throws FailedOperationException {
-    try {
-      return topicDAO.searchByKeyword(query);
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to search topics.", e);
+    if (req.fullName() == null || req.fullName().isBlank() || req.fullName().length() > 50) {
+      throw new ValidationException("Full name must be 1–50 characters.");
+    }
+
+    if (req.colorHex() != null && !req.colorHex().matches("^#[0-9A-Fa-f]{6}$")) {
+      throw new ValidationException("Color must be a valid hex code like #1A2B3C.");
     }
   }
 }

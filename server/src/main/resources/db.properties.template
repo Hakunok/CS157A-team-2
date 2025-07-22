@@ -1,6 +1,6 @@
-# JDBC configuration
+# Database properties file template. These values will be used to configure the data source.
 
 db.driver=com.mysql.cj.jdbc.Driver
-db.username=root
+db.user=root
 db.password=
-db.database=
+db.dbName=

@@ -2,8 +2,8 @@
  This doesn't drop the existing schema, you must do that beforehand if you choose to do so.
  Or just use a different database name.
  */
-CREATE DATABASE IF NOT EXISTS airchive_v2;
-USE airchive_v2;
+CREATE DATABASE IF NOT EXISTS airchive_v3;
+USE airchive_v3;
 
 /*
  Represents a user account on the platform
@@ -16,14 +16,14 @@ CREATE TABLE IF NOT EXISTS user (
     last_name VARCHAR(40) NOT NULL,
     email VARCHAR(75) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    userRole ENUM('READER', 'AUTHOR', 'ADMIN') NOT NULL DEFAULT 'READER',
-    userStatus ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
+    permission ENUM('READER', 'AUTHOR', 'ADMIN') NOT NULL DEFAULT 'READER',
+    status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 /*
  Represents an author profile on the platform
- An author entity can have an optional relationship (link) with a user entity whose userRole is "author"
+ An author entity can have an optional relationship (link) with a user entity whose role is "author"
  */
 CREATE TABLE IF NOT EXISTS author (
     author_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -46,13 +46,13 @@ CREATE TABLE IF NOT EXISTS publication (
     content TEXT,
     doi VARCHAR(100),
     url VARCHAR(2083),
-    type ENUM('PAPER', 'BLOG', 'ARTICLE'),
+    kind ENUM('PAPER', 'BLOG', 'ARTICLE'),
     submitter_id INT,
     published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     view_count INT DEFAULT 0,
     like_count INT DEFAULT 0,
-    userStatus ENUM('PUBLISHED', 'UNPUBLISHED', 'DRAFT', 'REMOVED') DEFAULT 'PUBLISHED',
+    status ENUM('PUBLISHED', 'UNPUBLISHED', 'DRAFT', 'REMOVED') DEFAULT 'PUBLISHED',
     FOREIGN KEY (submitter_id) REFERENCES user(user_id) ON DELETE SET NULL
 );
 
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS publication (
 CREATE TABLE IF NOT EXISTS topic (
     topic_id INT PRIMARY KEY AUTO_INCREMENT,
     code VARCHAR(10) NOT NULL UNIQUE,
-    name VARCHAR(50) NOT NULL UNIQUE
+    full_name VARCHAR(50) NOT NULL UNIQUE,
     color_hex VARCHAR(7) UNIQUE
 );
 
@@ -85,10 +85,9 @@ CREATE TABLE IF NOT EXISTS reading_list (
 CREATE TABLE IF NOT EXISTS author_request (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    userStatus ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
     requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    approved_at DATETIME,
-    rejected_at DATETIME,
+    decided_at DATETIME,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
 );
 
@@ -124,11 +123,11 @@ CREATE TABLE IF NOT EXISTS publication_topic (
  A user can interact with 1 or more topics.
  A topic can be interacted with by 1 or more users.
  */
-CREATE TABLE IF NOT EXISTS topic_interaction (
+CREATE TABLE IF NOT EXISTS interaction (
     interaction_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
     topic_id INT,
-    interaction ENUM('VIEW', 'LIKE', 'SAVE', 'INTEREST'),
+    kind ENUM('VIEW', 'LIKE', 'SAVE', 'INTEREST'),
     interacted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE

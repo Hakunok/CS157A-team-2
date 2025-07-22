@@ -1,149 +1,102 @@
 package com.airchive.service;
 
-import com.airchive.dao.AuthorDAO;
-import com.airchive.exception.AuthorNotFoundException;
-import com.airchive.exception.FailedOperationException;
+import com.airchive.db.Transaction;
+import com.airchive.dto.AuthorCreateRequest;
+import com.airchive.dto.AuthorResponse;
+import com.airchive.entity.Author;
+import com.airchive.entity.User;
+import com.airchive.exception.EntityNotFoundException;
+import com.airchive.exception.PersistenceException;
 import com.airchive.exception.ValidationException;
-import com.airchive.model.Author;
-import com.airchive.model.User;
-import com.airchive.util.AppContextProvider;
-import com.airchive.util.ValidationUtils;
-import java.sql.SQLException;
-import java.time.LocalDateTime;
+import com.airchive.repository.AuthorRepository;
+import com.airchive.repository.UserRepository;
+import com.airchive.util.ValidationUtil;
+
+import java.sql.Connection;
 import java.util.List;
-import java.util.Optional;
-import javax.servlet.ServletContext;
+import java.util.stream.Collectors;
 
-/**
- * Service class responsible for managing operations related to authors.
- * This class provides methods for creating, retrieving, updating, and deleting author profiles,
- * as well as linking authors to users and synchronizing author information with user data.
- */
 public class AuthorService {
-  private final AuthorDAO authorDAO;
 
-  public AuthorService() {
-    ServletContext context = AppContextProvider.getServletContext();
-    this.authorDAO = (AuthorDAO) context.getAttribute("authorDAO");
+  private final AuthorRepository authorRepository;
+  private final UserRepository userRepository;
+
+  public AuthorService(AuthorRepository authorRepository, UserRepository userRepository) {
+    this.authorRepository = authorRepository;
+    this.userRepository = userRepository;
   }
 
-  public Author registerNewAuthor( Integer userId, String firstName, String lastName, String bio)
-      throws ValidationException, FailedOperationException {
-
-    if (!ValidationUtils.isValidName(firstName)) {
-      throw new ValidationException("First name contains invalid characters or is too long.");
-    }
-    if (!ValidationUtils.isValidName(lastName)) {
-      throw new ValidationException("Last name contains invalid characters or is too long.");
-    }
-
-    Author author = new Author(
-        userId,
-        firstName.trim(),
-        lastName.trim(),
-        "",
-        userId != null,
-        LocalDateTime.now()
-    );
-
-    try {
-      return authorDAO.create(author);
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to create author profile.", e);
-    }
-  }
-
-  public Author getAuthorById(int authorId) throws FailedOperationException, AuthorNotFoundException {
-    try {
-      return authorDAO.findById(authorId)
-          .orElseThrow(() -> new AuthorNotFoundException("Author not found with ID: " + authorId));
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve author.", e);
-    }
-  }
-
-  public Author getAuthorByUserId(int userId) throws FailedOperationException, AuthorNotFoundException {
-    try {
-      return authorDAO.findByUserId(userId)
-          .orElseThrow(() -> new AuthorNotFoundException("No author linked to user ID: " + userId));
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve author.", e);
-    }
-  }
-
-  public List<Author> getAllAuthors() throws FailedOperationException {
-    try {
-      return authorDAO.findAll();
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve authors.", e);
-    }
-  }
-
-  public Author updateFirstName(int authorId, String newFirstName)
-      throws ValidationException, FailedOperationException, AuthorNotFoundException {
-    if (!ValidationUtils.isValidName(newFirstName)) {
-      throw new ValidationException("Please enter a valid first name.");
+  /**
+   * AUTHOR or ADMIN creates an external author profile not linked to a user.
+   */
+  public AuthorResponse createNonPlatformAuthor(AuthorCreateRequest request) throws ValidationException {
+    if (!ValidationUtil.isValidName(request.firstName()) || !ValidationUtil.isValidName(request.lastName())) {
+      throw new ValidationException("First or last name contains invalid characters or is too long.");
     }
 
-    Author author = getAuthorById(authorId);
-    author.setFirstName(newFirstName.trim());
-    return persistUpdate(author);
+    Author newAuthor = authorRepository.create(request.firstName(), request.lastName());
+    return AuthorResponse.fromAuthor(newAuthor);
   }
 
-  public Author updateLastName(int authorId, String newLastName)
-      throws ValidationException, FailedOperationException, AuthorNotFoundException {
-    if (!ValidationUtils.isValidName(newLastName)) {
-      throw new ValidationException("Please enter a valid last name.");
-    }
+  /**
+   * READER links to an existing non-user author, upgrading themselves to AUTHOR.
+   */
+  public AuthorResponse linkUserToAuthor(int authorId, int userId) {
+    try (Transaction tx = new Transaction()) {
+      tx.begin();
+      Connection conn = tx.getConnection();
 
-    Author author = getAuthorById(authorId);
-    author.setLastName(newLastName.trim());
-    return persistUpdate(author);
-  }
+      User user = userRepository.findById(userId, conn)
+          .orElseThrow(() -> new EntityNotFoundException("User not found."));
 
-  public Author updateBio(int authorId, String newBio)
-      throws FailedOperationException, AuthorNotFoundException {
-    Author author = getAuthorById(authorId);
-    author.setBio(newBio == null ? "" : newBio.trim());
-    return persistUpdate(author);
-  }
+      Author author = authorRepository.findById(authorId, conn)
+          .orElseThrow(() -> new EntityNotFoundException("Author not found."));
 
-  public Author linkUserToAuthor(int authorId, int userId)
-      throws FailedOperationException, AuthorNotFoundException {
-    Author author = getAuthorById(authorId);
-    author.setUserId(userId);
-    author.setIsUser(true);
-    return persistUpdate(author);
-  }
-
-  public void syncWithUser(User user) throws FailedOperationException {
-    if (user.getUserId() == null) return;
-    try {
-      Optional<Author> opt = authorDAO.findByUserId(user.getUserId());
-      if (opt.isPresent()) {
-        Author author = opt.get();
-        author.setFirstName(user.getFirstName());
-        author.setLastName(user.getLastName());
-        authorDAO.update(author);
+      if (author.isUser() || author.userId() != null) {
+        throw new PersistenceException("This author is already linked to a user.");
       }
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to sync changes.");
+
+      authorRepository.linkUserToAuthor(authorId, user, conn);
+      userRepository.updatePermission(userId, User.Permission.AUTHOR, conn);
+
+      tx.commit();
+
+      Author updatedAuthor = authorRepository.findById(authorId)
+          .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve updated author."));
+      return AuthorResponse.fromAuthor(updatedAuthor);
     }
   }
 
-  public boolean deleteAuthor(int authorId) throws FailedOperationException {
-    try {
-      return authorDAO.delete(authorId);
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to delete author profile.", e);
-    }
+  /**
+   * Get the author profile linked to a user.
+   */
+  public Author getAuthorByUserId(int userId) {
+    return authorRepository.findByUserId(userId)
+        .orElseThrow(() -> new EntityNotFoundException("Author profile not found."));
   }
 
-  private Author persistUpdate(Author author) throws FailedOperationException {
-    try {
-      return authorDAO.update(author);
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to update author profile.", e);
-    }
+  public AuthorResponse getByUserId(int userId) {
+    return AuthorResponse.fromAuthor(getAuthorByUserId(userId));
+  }
+
+  /**
+   * Update the bio of an author (author-only action).
+   */
+  public AuthorResponse updateBio(int userId, String newBio) {
+    Author author = getAuthorByUserId(userId);
+    authorRepository.updateBio(author.id(), newBio);
+
+    Author updated = authorRepository.findById(author.id())
+        .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve updated author."));
+    return AuthorResponse.fromAuthor(updated);
+  }
+
+  /**
+   * Admin: Get a list of all authors.
+   */
+  public List<AuthorResponse> getAll() {
+    return authorRepository.findAll().stream()
+        .map(AuthorResponse::fromAuthor)
+        .collect(Collectors.toList());
   }
 }

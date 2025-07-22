@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/ThemeToggle.jsx"
 
 export default function Navbar({ isAuthenticated, onLogout }) {
   return (
       <header className="sticky top-0 z-50 h-16 px-4 flex justify-between
-      items-center border-b shadow-sm bg-white dark:bg-black">
+      items-center border-b shadow-sm">
         {/* Left side (logo or nav) */}
         <div className="flex items-center gap-2">
           <Link to="/" className="text-xl font-bold">
@@ -15,7 +14,6 @@ export default function Navbar({ isAuthenticated, onLogout }) {
 
         {/* Right side (buttons, toggles, etc.) */}
         <nav className="flex items-center gap-2">
-          <ThemeToggle />
           {isAuthenticated ? (
               <>
                 <Link to="/dashboard">

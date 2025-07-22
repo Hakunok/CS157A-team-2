@@ -1,143 +1,89 @@
 package com.airchive.service;
 
-import com.airchive.dao.AuthorRequestDAO;
-import com.airchive.dao.UserDAO;
-import com.airchive.exception.AuthorNotFoundException;
-import com.airchive.exception.FailedOperationException;
-import com.airchive.exception.UserNotFoundException;
-import com.airchive.exception.ValidationException;
-import com.airchive.model.AuthorRequest;
-import com.airchive.model.AuthorRequest.RequestStatus;
-import com.airchive.model.User;
-import com.airchive.util.AppContextProvider;
-import java.sql.SQLException;
-import java.time.LocalDateTime;
+import com.airchive.db.Transaction;
+import com.airchive.entity.AuthorRequest;
+import com.airchive.entity.User;
+import com.airchive.exception.EntityNotFoundException;
+import com.airchive.exception.PersistenceException;
+import com.airchive.repository.AuthorRepository;
+import com.airchive.repository.AuthorRequestRepository;
+import com.airchive.repository.UserRepository;
+import java.sql.Connection;
 import java.util.List;
-import java.util.Optional;
-import javax.servlet.ServletContext;
 
-/**
- * Service class responsible for handling operations related to author requests.
- * Communicates with the data access layer to manage requests from users who want to become authors.
- */
 public class AuthorRequestService {
-  private final AuthorRequestDAO authorRequestDAO;
-  private final AuthorService authorService;
-  private final UserDAO userDAO;
+  private final AuthorRequestRepository authorRequestRepository;
+  private final UserRepository userRepository;
+  private final AuthorRepository authorRepository;
 
-  public AuthorRequestService() {
-    ServletContext context = AppContextProvider.getServletContext();
-    this.authorRequestDAO = (AuthorRequestDAO) context.getAttribute("authorRequestDAO");
-    this.authorService = (AuthorService) context.getAttribute("authorService");
-    this.userDAO = (UserDAO) context.getAttribute("userDAO");
+  public AuthorRequestService(AuthorRequestRepository authorRequestRepository, UserRepository userRepository, AuthorRepository authorRepository) {
+    this.authorRequestRepository = authorRequestRepository;
+    this.userRepository = userRepository;
+    this.authorRepository = authorRepository;
   }
 
-  public AuthorRequest submitRequest(int userId) throws FailedOperationException {
-    try {
-      Optional<AuthorRequest> existing = authorRequestDAO.findByUserId(userId);
+  public AuthorRequest createRequest(int userId) throws PersistenceException {
+    User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-      if (existing.isPresent()) {
-        AuthorRequest request = existing.get();
+    if (user.permission().equals(User.Permission.AUTHOR) || user.permission().equals(User.Permission.ADMIN)) {
+      throw new PersistenceException("This user is already an author or admin.");
+    }
 
-        if (request.isPending()) {
-          throw new FailedOperationException("You already have a pending request.");
-        }
+    if (authorRequestRepository.hasPendingRequest(userId)) {
+      throw new PersistenceException("This user already has a pending request.");
+    }
 
-        if (request.isApproved()) {
-          throw new FailedOperationException("You are an approved author.");
-        }
+    return authorRequestRepository.create(userId);
+  }
 
-        request.setStatus(AuthorRequest.RequestStatus.PENDING);
-        request.setRequestedAt(LocalDateTime.now());
-        request.setApprovedAt(null);
-        request.setRejectedAt(null);
+  public AuthorRequest approveRequest(int requestId) throws EntityNotFoundException, PersistenceException {
+    try (Transaction tx = new Transaction()) {
+      tx.begin();
+      Connection conn = tx.getConnection();
 
-        return authorRequestDAO.update(request);
+      AuthorRequest request = authorRequestRepository.findById(requestId)
+          .orElseThrow(() -> new EntityNotFoundException("Author request not found."));
+
+      if (request.status() != AuthorRequest.Status.PENDING) {
+        throw new PersistenceException("Request is not pending.");
       }
 
-      AuthorRequest newRequest = new AuthorRequest(
-          userId,
-          RequestStatus.PENDING,
-          LocalDateTime.now(),
-          null,
-          null
-      );
-      return authorRequestDAO.create(newRequest);
+      User user = userRepository.findById(request.userId())
+          .orElseThrow(() -> new EntityNotFoundException("User not found."));
 
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to submit author request.", e);
-    }
-  }
-
-  public List<AuthorRequest> getPendingRequests() throws FailedOperationException {
-    try {
-      return authorRequestDAO.findAllPending();
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve all pending author requests.", e);
-    }
-  }
-
-  public List<AuthorRequest> getAllRequests() throws FailedOperationException {
-    try {
-      return authorRequestDAO.findAll();
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to retrieve all author requests.", e);
-    }
-  }
-
-  public AuthorRequest approveRequest(int requestId)
-      throws FailedOperationException, UserNotFoundException, ValidationException {
-    try {
-      AuthorRequest request = authorRequestDAO.findById(requestId)
-          .orElseThrow(() -> new FailedOperationException("Author request not found."));
-
-      if (!request.isPending()) {
-        throw new FailedOperationException("Only pending requests can be approved.");
+      if (user.permission() == User.Permission.AUTHOR || user.permission() == User.Permission.ADMIN) {
+        throw new PersistenceException("User is already an author or admin.");
       }
 
-      User user = userDAO.findById(request.getUserId())
-          .orElseThrow(() -> new UserNotFoundException("User not found for request."));
+      authorRequestRepository.updateStatus(requestId, AuthorRequest.Status.APPROVED, conn);
+      userRepository.updatePermission(request.userId(), User.Permission.AUTHOR, conn);
+      authorRepository.createFromUser(user, conn);
 
-      try {
-        authorService.getAuthorByUserId(user.getUserId());
-        throw new FailedOperationException("This user is already linked to an author.");
-      } catch (AuthorNotFoundException ignored) {
-        // user not linked ot author
-      }
-
-      authorService.registerNewAuthor(user.getUserId(), user.getFirstName(), user.getLastName(), "");
-
-      request.setStatus(RequestStatus.APPROVED);
-      request.setApprovedAt(LocalDateTime.now());
-      return authorRequestDAO.update(request);
-
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to approve author request.", e);
+      tx.commit();
+      return authorRequestRepository.findById(requestId)
+          .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve updated request."));
     }
   }
 
-  public AuthorRequest rejectRequest(int requestId) throws FailedOperationException {
-    try {
-      AuthorRequest request = authorRequestDAO.findById(requestId)
-          .orElseThrow(() -> new FailedOperationException("Author request not found."));
+  public AuthorRequest rejectRequest(int requestId) {
+    AuthorRequest request = authorRequestRepository.findById(requestId)
+        .orElseThrow(() -> new EntityNotFoundException("Author request not found."));
 
-      if (!request.isPending()) {
-        throw new FailedOperationException("Only pending requests can be rejected.");
-      }
-
-      request.setStatus(RequestStatus.REJECTED);
-      request.setRejectedAt(LocalDateTime.now());
-      return authorRequestDAO.update(request);
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to reject author request.", e);
+    if (request.status() != AuthorRequest.Status.PENDING) {
+      throw new PersistenceException("Request is not pending.");
     }
+
+    authorRequestRepository.updateStatus(requestId, AuthorRequest.Status.REJECTED);
+    return authorRequestRepository.findById(requestId)
+        .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve rejected request."));
   }
 
-  public Optional<AuthorRequest> getRequestByUserId(int userId) throws FailedOperationException {
-    try {
-      return authorRequestDAO.findByUserId(userId);
-    } catch (SQLException e) {
-      throw new FailedOperationException("Failed to get author request.", e);
-    }
+  public List<AuthorRequest> getPendingRequests() {
+    return authorRequestRepository.findPending();
+  }
+
+  public AuthorRequest getRequestByUserId(int userId) {
+    return authorRequestRepository.findByUserId(userId)
+        .orElseThrow(() -> new EntityNotFoundException("No author request found for this user."));
   }
 }

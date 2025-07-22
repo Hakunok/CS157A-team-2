@@ -1,13 +1,6 @@
 ### notes
 
-right now our multi step db operations are not atomic transactions. we do these operations with different connections so right now it's not an atomic transaction. we'll change this going forward.
-
-the functionalities we have right now are:
-1. creating a new user account
-2. requesting an author role
-3. becoming an admin
-4. selecting topic interests
-
+see the README in `server/`
 
 ### setup
 Make a copy of `src/min/resources/db.properties.template` and name it `db.properties`, fill out

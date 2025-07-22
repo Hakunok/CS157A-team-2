@@ -49,7 +49,7 @@ INSERT INTO Author (first_name, last_name, bio, is_verified, user_id) VALUES
 ('And', 'anotherDude', 'random dude 3', FALSE, NULL),
 ('System', 'User', 'This is the aiRchive system publisher', TRUE, 1);
 
-INSERT INTO Publication (title, abstract, content, doi, url, type, submitter_id, userStatus) VALUES
+INSERT INTO Publication (title, abstract, content, doi, url, type, submitter_id, status) VALUES
 ('The Alignment Problem in Advanced AI', 'An exploration of the challenges in ensuring AI systems pursue goals aligned with human values.', 'Full text content here...', '10.1000/182', 'https://example.com/pub/ai_alignment', 'research', 1, 'published'),
 ('A Primer on Shor\'s Algorithm', 'Simplifying the complex principles behind quantum factorization.', 'Full text content here...', '10.1001/qcomp.2024', 'https://example.com/pub/shors_algo', 'article', 4, 'published'),
 ('The Hunter\'s Method for AI Optimization', 'A novel approach to training generative models inspired by hunter techniques.', 'Full text content discussing reinforcement learning and search algorithms...', '10.2025/ai.hm.01', NULL, 'research', 11, 'published'),
@@ -73,7 +73,7 @@ INSERT INTO ReadingList (user_id, list_name, description, is_public) VALUES
 (9, 'Advanced SQL Techniques', 'Personal reference for complex queries and database architecture.', FALSE),
 (11, 'Generative AI Showcase', 'Coolest examples of generative art and text models.', TRUE);
 
-INSERT INTO AuthorRequest (user_id, userStatus) VALUES
+INSERT INTO AuthorRequest (user_id, status) VALUES
 (11, 'approved'),
 (4, 'approved'),
 (2, 'pending'),

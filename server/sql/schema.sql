@@ -1,77 +1,72 @@
 
-CREATE DATABASE IF NOT EXISTS airchive_v3;
-USE airchive_v3;
+CREATE DATABASE IF NOT EXISTS airchive;
+USE airchive;
 
-
-CREATE TABLE IF NOT EXISTS user (
-    user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(20) UNIQUE,
+-- Unique record for every individual in the system, whether they have an account or not
+CREATE TABLE person (
+    person_id INT PRIMARY KEY AUTO_INCREMENT,
     first_name VARCHAR(40) NOT NULL,
     last_name VARCHAR(40) NOT NULL,
-    email VARCHAR(75) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) DEFAULT NULL,
-    permission ENUM('READER', 'AUTHOR') NOT NULL DEFAULT 'READER',
-    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    is_placeholder BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    contact_email VARCHAR(75) UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS publication (
+-- Stores the authentication and permission details for platform users
+CREATE TABLE account (
+    account_id INT PRIMARY KEY AUTO_INCREMENT,
+    person_id INT NOT NULL UNIQUE,
+    email VARCHAR(75) NOT NULL UNIQUE,
+    username VARCHAR(20) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) DEFAULT NULL,
+    role ENUM('READER', 'AUTHOR') NOT NULL DEFAULT 'READER',
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (person_id) REFERENCES person(person_id) ON DELETE CASCADE
+);
+
+-- Tracks requests for 'READER' accounts to gain 'AUTHOR' privileges
+CREATE TABLE author_request (
+    account_id INT PRIMARY KEY,
+    status ENUM('PENDING', 'APPROVED') DEFAULT 'PENDING',
+    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE
+);
+
+-- Stores the classification topics which are assigned to publications
+CREATE TABLE topic (
+    topic_id INT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(10) NOT NULL UNIQUE,
+    full_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- Stores all published works on the platform
+CREATE TABLE publication (
     pub_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(150) NOT NULL,
-    abstract TEXT,
     content TEXT,
-    doi VARCHAR(100),
+    doi VARCHAR(100) UNIQUE,
     url VARCHAR(2083),
-    kind ENUM('PAPER', 'BLOG', 'ARTICLE'),
+    kind ENUM('PAPER', 'BLOG', 'ARTICLE') NOT NULL,
     submitter_id INT,
     corresponding_author_id INT,
     submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('PUBLISHED', 'DRAFT') DEFAULT 'DRAFT',
-    FOREIGN KEY (submitter_id) REFERENCES user(user_id) ON DELETE SET NULL,
-    FOREIGN KEY (corresponding_author_id) REFERENCES user(user_id) ON DELETE SET NULL
+    published_at DATETIME,
+    status ENUM('PUBLISHED', 'DRAFT') NOT NULL DEFAULT 'DRAFT',
+    FOREIGN KEY (submitter_id) REFERENCES account(account_id) ON DELETE SET NULL,
+    FOREIGN KEY (corresponding_author_id) REFERENCES person(person_id) ON DELETE SET NULL
 );
 
-
-CREATE TABLE IF NOT EXISTS topic (
-    topic_id INT PRIMARY KEY AUTO_INCREMENT,
-    code VARCHAR(10) NOT NULL UNIQUE,
-    full_name VARCHAR(50) NOT NULL UNIQUE,
-);
-
-
-CREATE TABLE IF NOT EXISTS reading_list (
-    list_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    title VARCHAR(100) NOT NULL,
-    description TEXT,
-    is_public BOOLEAN DEFAULT FALSE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
-);
-
-
-CREATE TABLE IF NOT EXISTS author_request (
-    user_id INT PRIMARY KEY,
-    status ENUM('PENDING', 'APPROVED') DEFAULT 'PENDING',
-    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    decided_at DATETIME,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
-);
-
-
-CREATE TABLE IF NOT EXISTS publication_author (
+-- Relates publications to their authors (person)
+CREATE TABLE publication_author (
     pub_id INT NOT NULL,
-    user_id INT NOT NULL,
+    person_id INT NOT NULL,
     author_order INT NOT NULL,
-    PRIMARY KEY (pub_id, user_id),
+    PRIMARY KEY (pub_id, person_id),
     FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE
+    FOREIGN KEY (person_id) REFERENCES person(person_id) ON DELETE RESTRICT
 );
 
-
-CREATE TABLE IF NOT EXISTS publication_topic (
+-- Relates one ore more topics to a publication
+CREATE TABLE publication_topic (
     pub_id INT NOT NULL,
     topic_id INT NOT NULL,
     PRIMARY KEY (pub_id, topic_id),
@@ -79,48 +74,47 @@ CREATE TABLE IF NOT EXISTS publication_topic (
     FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE
 );
 
-
-CREATE TABLE IF NOT EXISTS topic_interaction (
-    interaction_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    topic_id INT NOT NULL,
-    kind ENUM('VIEW', 'LIKE', 'SAVE') NOT NULL,
-    interacted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE
+-- Stores an account's personal collections of publications
+CREATE TABLE collection (
+    collection_id INT PRIMARY KEY AUTO_INCREMENT,
+    account_id INT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_public BOOLEAN DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE
 );
 
-
-CREATE TABLE IF NOT EXISTS reading_list_item (
-    list_id INT NOT NULL,
+-- Relates publications to a collection
+CREATE TABLE collection_item (
+    collection_id INT NOT NULL,
     pub_id INT NOT NULL,
     added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (list_id, pub_id),
-    FOREIGN KEY (list_id) REFERENCES reading_list(list_id) ON DELETE CASCADE,
+    PRIMARY KEY (collection_id, pub_id),
+    FOREIGN KEY (collection_id) REFERENCES collection(collection_id) ON DELETE CASCADE,
     FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE
 );
 
-
-CREATE TABLE IF NOT EXISTS publication_interaction (
+-- Stores an account's interactions with a publication
+CREATE TABLE publication_interaction (
     interaction_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    account_id INT NOT NULL,
     pub_id INT NOT NULL,
     kind ENUM('VIEW', 'LIKE', 'SAVE') NOT NULL,
     interacted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, pub_id, kind),
-    FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    UNIQUE (account_id, pub_id, kind),
+    FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
     FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_user_username ON user(username);
-
-CREATE INDEX idx_pub_status ON publication(status);
-CREATE INDEX idx_pub_published ON publication(published_at DESC);
-
-CREATE INDEX idx_reading_list_user ON reading_list(user_id);
-CREATE INDEX idx_reading_list_added ON reading_list_item(list_id, added_at);
-
-CREATE INDEX idx_pub_interaction ON publication_interaction(user_id, kind);
-CREATE INDEX idx_topic_interaction ON topic_interaction(user_id, kind);
-
-CREATE INDEX idx_topic_code ON topic(code);
+-- Stores an account's affinity towards a topic
+-- Used for account-based recommendations
+CREATE TABLE topic_affinity (
+    account_id INT NOT NULL,
+    topic_id INT NOT NULL,
+    score INT NOT NULL DEFAULT 0,
+    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, topic_id),
+    FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE
+);

@@ -1,4 +1,3 @@
-
 CREATE DATABASE IF NOT EXISTS airchive;
 USE airchive;
 
@@ -7,7 +6,7 @@ CREATE TABLE person (
     person_id INT PRIMARY KEY AUTO_INCREMENT,
     first_name VARCHAR(40) NOT NULL,
     last_name VARCHAR(40) NOT NULL,
-    contact_email VARCHAR(75) UNIQUE
+    contact_email VARCHAR(75) NOT NULL UNIQUE
 );
 
 -- Stores the authentication and permission details for platform users

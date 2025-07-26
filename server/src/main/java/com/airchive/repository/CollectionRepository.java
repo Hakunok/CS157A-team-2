@@ -21,7 +21,11 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if the creation fails and the new collection cannot be retrieved.
    */
   public Collection createDefaultCollection(int accountId) {
-    return null;
+    try (Connection conn = getConnection()) {
+      return createDefaultConnection(accountId, conn);
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed creation", e);
+    }
   }
 
   /**
@@ -35,7 +39,27 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if the creation fails and the new collection cannot be retrieved.
    */
   public Collection createDefaultCollection(int accountId, Connection conn) {
-    return null;
+    if (existsDefaultCollection(accountId, conn)) {
+      throw ValidationException("Default Col exists");
+    }
+    String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
+                     "VALUES (?, 'Saved', 'Default collection for saved items', TRUE, FALSE)";
+    try (PreparedStatement stm = conn.PreparedStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stm.set(1, accountId);
+      int affRows = stm.executeUpdate();  
+      if (affRows == 0) {
+        throw new RuntimeException("Default creation failed, No rows affected");
+      }
+      try (ResultSet gks = stm.getGeneratedKeys()) {
+        if (gks.next()) {
+          int collectionID = gks.getInt(1);
+          return findById(collectionID, conn).orElseThrow(() -> new EntityNotFoundException("Retrieval of created Default Collection failed"));
+        }
+      }
+      throw new EntityNotFoundException("Failed creation");
+    } catch (SQLException e) {
+      throw new RuntimeException("Database error while creating", e);
+    }
   }
 
   /**

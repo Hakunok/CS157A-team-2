@@ -5,7 +5,7 @@ import com.airchive.dto.CreatePublicationRequest;
 import com.airchive.dto.PublicationResponse;
 import com.airchive.dto.UpdatePublicationRequest;
 import com.airchive.entity.Publication;
-import com.airchive.entity.User;
+import com.airchive.entity.Account;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.PersistenceException;
 import com.airchive.exception.ValidationException;
@@ -17,7 +17,6 @@ import com.airchive.repository.UserRepository;
 import java.sql.Connection;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public class PublicationService {
 
@@ -50,7 +49,7 @@ public class PublicationService {
       tx.begin();
       Connection conn = tx.getConnection();
 
-      User submitter = userRepository.findById(submitterId, conn)
+      Account submitter = userRepository.findById(submitterId, conn)
           .orElseThrow(() -> new EntityNotFoundException("Submitting user not found."));
 
       List<Integer> authorIds = req.authorIds();
@@ -99,10 +98,10 @@ public class PublicationService {
       tx.begin();
       Connection conn = tx.getConnection();
 
-      publicationRepository.incrementViewCount(pubId);
-
       Publication pub = publicationRepository.findById(pubId, conn)
           .orElseThrow(() -> new EntityNotFoundException("Publication not found."));
+
+      publicationRepository.incrementViewCount(pubId);
 
       List<Integer> authors = publicationRepository.getAuthorIds(pubId, conn);
       List<Integer> topics = publicationRepository.getTopicIds(pubId, conn);
@@ -124,13 +123,8 @@ public class PublicationService {
       Publication existing = publicationRepository.findById(pubId, conn)
           .orElseThrow(() -> new EntityNotFoundException("Publication not found."));
 
-      List<Integer> authorIds = publicationRepository.getAuthorIds(pubId, conn);
-      Integer authorUserId = authorRepository.findById(authorIds.getFirst())
-          .flatMap(a -> Optional.ofNullable(a.userId()))
-          .orElse(null);
-
-      if (!authorIds.isEmpty() && !authorIds.contains(authorUserId)) {
-        throw new PersistenceException("You are not an author of this publication.");
+      if (!existing.submitterId().equals(userId)) {
+        throw new PersistenceException("You are not the submitter of this publication.");
       }
 
       Publication updated = new Publication(
@@ -157,10 +151,12 @@ public class PublicationService {
 
       tx.commit();
 
+      List<Integer> authors = publicationRepository.getAuthorIds(pubId, conn);
       List<Integer> updatedTopics = publicationRepository.getTopicIds(pubId, conn);
-      return PublicationResponse.fromPublication(updated, authorIds, updatedTopics);
+      return PublicationResponse.fromPublication(updated, authors, updatedTopics);
     }
   }
+
 
   /**
    * List all published publications (paginated).
@@ -185,6 +181,16 @@ public class PublicationService {
       return PublicationResponse.fromPublication(pub, authors, topics);
     }).toList();
   }
+
+  public List<PublicationResponse> getBySubmitterId(int userId) {
+    List<Publication> pubs = publicationRepository.findBySubmitterId(userId);
+    return pubs.stream().map(pub -> {
+      List<Integer> authors = publicationRepository.getAuthorIds(pub.pubId());
+      List<Integer> topics = publicationRepository.getTopicIds(pub.pubId());
+      return PublicationResponse.fromPublication(pub, authors, topics);
+    }).toList();
+  }
+
 
   /**
    * Increments like count for a publication.

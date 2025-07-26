@@ -30,7 +30,7 @@ public class TopicResource {
   @GET
   public Response getAllTopics() {
     List<TopicResponse> topics = topicService.getAllTopics();
-    return Response.ok(topics).build();
+    return JsonUtil.ok(topics);
   }
 
   /**
@@ -44,7 +44,7 @@ public class TopicResource {
     }
 
     List<TopicResponse> results = topicService.search(query);
-    return Response.ok(results).build();
+    return JsonUtil.ok(results);
   }
 
   /**
@@ -54,7 +54,8 @@ public class TopicResource {
   @Path("/{id}")
   public Response getById(@PathParam("id") int id) {
     try {
-      return Response.ok(topicService.getById(id)).build();
+      TopicResponse topic = topicService.getById(id);
+      return JsonUtil.ok(topic);
     } catch (Exception e) {
       return JsonUtil.notFound("Topic not found.");
     }
@@ -65,13 +66,12 @@ public class TopicResource {
    */
   @POST
   public Response createTopic(CreateOrUpdateTopicRequest req) {
-    if (!AuthUtil.hasPermission(request, "ADMIN")) {
-      return JsonUtil.forbidden("Admin access required.");
-    }
-
     try {
+      AuthUtil.requirePermission(request, "ADMIN");
+
       TopicResponse topic = topicService.createTopic(req);
       return Response.status(Response.Status.CREATED).entity(topic).build();
+
     } catch (ValidationException e) {
       return JsonUtil.badRequest(e.getMessage());
     } catch (Exception e) {
@@ -85,13 +85,12 @@ public class TopicResource {
   @PUT
   @Path("/{id}")
   public Response updateTopic(@PathParam("id") int topicId, CreateOrUpdateTopicRequest req) {
-    if (!AuthUtil.hasPermission(request, "ADMIN")) {
-      return JsonUtil.forbidden("Admin access required.");
-    }
-
     try {
+      AuthUtil.requirePermission(request, "ADMIN");
+
       TopicResponse updated = topicService.updateTopic(topicId, req);
-      return Response.ok(updated).build();
+      return JsonUtil.ok(updated);
+
     } catch (ValidationException e) {
       return JsonUtil.badRequest(e.getMessage());
     } catch (Exception e) {

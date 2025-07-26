@@ -1,28 +1,27 @@
 package com.airchive.resource;
 
+import com.airchive.dto.SessionUser;
 import com.airchive.dto.SigninRequest;
 import com.airchive.dto.SignupRequest;
 import com.airchive.dto.UserResponse;
+import com.airchive.entity.Account;
 import com.airchive.exception.AuthenticationException;
 import com.airchive.exception.DataAccessException;
+import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.ValidationException;
 import com.airchive.service.UserService;
 import com.airchive.util.JsonUtil;
+
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
 
 @Path("/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class AuthenticationResource {
+public class AuthResource {
 
   @Inject
   private UserService userService;
@@ -34,23 +33,20 @@ public class AuthenticationResource {
   @Path("/signin")
   public Response signin(SigninRequest signinRequest) {
     try {
-      UserResponse user = userService.signin(signinRequest);
+      Account user = userService.signin(signinRequest);
+      SessionUser sessionUser = SessionUser.from(user);
 
       HttpSession session = request.getSession(true);
-      session.setAttribute("userId", user.userId());
-      session.setAttribute("username", user.username());
-      session.setAttribute("firstName", user.firstName());
-      session.setAttribute("lastName", user.lastName());
-      session.setAttribute("permission", user.permission());
+      session.setAttribute("user", sessionUser);
       session.setMaxInactiveInterval(90 * 60);
 
-      return JsonUtil.ok("Successfully signed in");
+      return JsonUtil.ok(UserResponse.fromUser(user));
     } catch (AuthenticationException e) {
       return JsonUtil.unauthorized(e.getMessage());
     } catch (DataAccessException e) {
       return JsonUtil.internalError(e.getMessage());
     } catch (Exception e) {
-      return JsonUtil.internalError("Login failed");
+      return JsonUtil.internalError("Sign in failed");
     }
   }
 
@@ -58,23 +54,20 @@ public class AuthenticationResource {
   @Path("/signup")
   public Response signup(SignupRequest signupRequest) {
     try {
-      UserResponse user = userService.signup(signupRequest);
+      Account user = userService.signup(signupRequest);
+      SessionUser sessionUser = SessionUser.from(user);
 
       HttpSession session = request.getSession(true);
-      session.setAttribute("userId", user.userId());
-      session.setAttribute("username", user.username());
-      session.setAttribute("firstName", user.firstName());
-      session.setAttribute("lastName", user.lastName());
-      session.setAttribute("permission", user.permission());
+      session.setAttribute("user", sessionUser);
       session.setMaxInactiveInterval(90 * 60);
 
-      return JsonUtil.created(user);
+      return JsonUtil.created(UserResponse.fromUser(user));
     } catch (ValidationException e) {
       return JsonUtil.badRequest(e.getMessage());
     } catch (DataAccessException e) {
       return JsonUtil.internalError(e.getMessage());
     } catch (Exception e) {
-      return JsonUtil.internalError("Signup failed");
+      return JsonUtil.internalError("Sign up failed");
     }
   }
 
@@ -86,5 +79,33 @@ public class AuthenticationResource {
       session.invalidate();
     }
     return JsonUtil.ok("Successfully signed out");
+  }
+
+  @POST
+  @Path("/session/refresh")
+  public Response refreshSession() {
+    HttpSession session = request.getSession(false);
+    if (session == null) {
+      return JsonUtil.unauthorized("Not signed in.");
+    }
+
+    SessionUser sessionUser = (SessionUser) session.getAttribute("user");
+    if (sessionUser == null) {
+      return JsonUtil.unauthorized("Invalid session.");
+    }
+
+    try {
+      Account updatedUser = userService.getUserById(sessionUser.userId());
+
+      session.setAttribute("user", SessionUser.from(updatedUser));
+
+      return JsonUtil.ok(UserResponse.fromUser(updatedUser));
+
+    } catch (EntityNotFoundException e) {
+      session.invalidate();
+      return JsonUtil.unauthorized("Your account no longer exists.");
+    } catch (Exception e) {
+      return JsonUtil.internalError("Failed to refresh session.");
+    }
   }
 }

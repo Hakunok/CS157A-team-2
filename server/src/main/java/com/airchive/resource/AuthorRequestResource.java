@@ -35,7 +35,11 @@ public class AuthorRequestResource {
     }
 
     try {
-      int userId = AuthUtil.getUserId(request);
+      Integer userId = AuthUtil.getUserId(request);
+      if (userId == null) {
+        return JsonUtil.unauthorized("User must be signed in.");
+      }
+
       AuthorRequest newRequest = authorRequestService.createRequest(userId);
       return Response.status(Response.Status.CREATED).entity(newRequest).build();
     } catch (PersistenceException e) {
@@ -58,7 +62,11 @@ public class AuthorRequestResource {
     }
 
     try {
-      int userId = AuthUtil.getUserId(request);
+      Integer userId = AuthUtil.getUserId(request);
+      if (userId == null) {
+        return JsonUtil.unauthorized("User must be signed in.");
+      }
+
       AuthorRequest req = authorRequestService.getRequestByUserId(userId);
       return Response.ok(req).build();
     } catch (EntityNotFoundException e) {
@@ -88,7 +96,7 @@ public class AuthorRequestResource {
   /**
    * ADMIN: Approve a specific author request
    */
-  @POST
+  @PATCH
   @Path("/{id}/approve")
   public Response approveRequest(@PathParam("id") int requestId) {
     if (!AuthUtil.hasPermission(request, "ADMIN")) {
@@ -110,7 +118,7 @@ public class AuthorRequestResource {
   /**
    * ADMIN: Reject a specific author request
    */
-  @POST
+  @PATCH
   @Path("/{id}/reject")
   public Response rejectRequest(@PathParam("id") int requestId) {
     if (!AuthUtil.hasPermission(request, "ADMIN")) {

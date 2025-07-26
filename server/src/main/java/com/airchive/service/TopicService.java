@@ -53,7 +53,7 @@ public class TopicService {
     validateRequest(req);
 
     try {
-      Topic topic = topicRepository.create(req.code(), req.fullName(), req.colorHex());
+      Topic topic = topicRepository.create(req.code(), req.fullName());
       return TopicResponse.from(topic);
     } catch (Exception e) {
       throw new PersistenceException("Failed to create topic. It may already exist.");
@@ -67,7 +67,7 @@ public class TopicService {
       throws ValidationException {
     validateRequest(req);
 
-    Topic topic = topicRepository.update(topicId, req.code(), req.fullName(), req.colorHex());
+    Topic topic = topicRepository.update(topicId, req.code(), req.fullName());
     return TopicResponse.from(topic);
   }
 
@@ -78,10 +78,6 @@ public class TopicService {
 
     if (req.fullName() == null || req.fullName().isBlank() || req.fullName().length() > 50) {
       throw new ValidationException("Full name must be 1–50 characters.");
-    }
-
-    if (req.colorHex() != null && !req.colorHex().matches("^#[0-9A-Fa-f]{6}$")) {
-      throw new ValidationException("Color must be a valid hex code like #1A2B3C.");
     }
   }
 }

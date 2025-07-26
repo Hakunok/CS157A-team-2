@@ -1,11 +1,8 @@
-import { Button } from "@/components/ui/button"
-
-export default function SignIn({ onLogin }) {
+export default function SignIn() {
   return (
-      <div className="max-w-sm mx-auto mt-8">
-        <h2 className="text-xl mb-4">Sign In</h2>
-        {/* Replace with real form later */}
-        <Button onClick={onLogin}>Mock Login</Button>
-      </div>
+      <main className="p-8">
+        <h1 className="text-2xl font-display">Sign In</h1>
+        {/* Form will go here */}
+      </main>
   )
 }

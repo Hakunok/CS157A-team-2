@@ -2,6 +2,11 @@ package com.airchive.util;
 
 import javax.ws.rs.core.Response;
 
+/**
+ * Utility class for creating HTTP {@link Response} objects
+ * with predefined structures and commonly used status codes.
+ * Responses can be constructed using entities or messages.
+ */
 public class JsonUtil {
 
   public static Response ok(Object entity) {
@@ -52,7 +57,16 @@ public class JsonUtil {
         .build();
   }
 
+  /**
+   * Represents a response structure containing a single message.
+   * @param message the message content; must not be null
+   */
   public record MessageResponse(String message) {}
 
+  /**
+   * Represents an error response structure with an error code or type and an associated message.
+   * @param error a code or identifier representing the type of error
+   * @param message the message content; must not be null
+   */
   public record ErrorResponse(String error, String message) {}
 }

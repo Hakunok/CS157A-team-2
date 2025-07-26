@@ -2,9 +2,13 @@ package com.airchive.listener;
 
 import com.airchive.repository.AuthorRepository;
 import com.airchive.repository.AuthorRequestRepository;
+import com.airchive.repository.PublicationRepository;
+import com.airchive.repository.TopicRepository;
 import com.airchive.repository.UserRepository;
 import com.airchive.service.AuthorRequestService;
 import com.airchive.service.AuthorService;
+import com.airchive.service.PublicationService;
+import com.airchive.service.TopicService;
 import com.airchive.service.UserService;
 import java.io.File;
 import java.io.IOException;
@@ -47,18 +51,25 @@ public class AppContextListener implements ServletContextListener {
 
       // Instantiate repositories
       UserRepository userRepository = new UserRepository();
-      AuthorRequestRepository authorRequestRepository = new AuthorRequestRepository();
       AuthorRepository authorRepository = new AuthorRepository();
+      AuthorRequestRepository authorRequestRepository = new AuthorRequestRepository();
+      TopicRepository topicRepository = new TopicRepository();
+      PublicationRepository publicationRepository = new PublicationRepository();
 
       // Instantiate services and inject repositories
       UserService userService = new UserService(userRepository);
-      AuthorRequestService authorRequestService = new AuthorRequestService(authorRequestRepository, userRepository, authorRepository);
       AuthorService authorService = new AuthorService(authorRepository, userRepository);
+      AuthorRequestService authorRequestService = new AuthorRequestService(authorRequestRepository, userRepository, authorRepository);
+      TopicService topicService = new TopicService(topicRepository);
+      PublicationService publicationService = new PublicationService(publicationRepository, authorRepository, userRepository, topicRepository);
+
 
       // Add services to servlet context
       context.setAttribute("userService", userService);
-      context.setAttribute("authorRequestService", authorRequestService);
       context.setAttribute("authorService", authorService);
+      context.setAttribute("authorRequestService", authorRequestService);
+      context.setAttribute("topicService", topicService);
+      context.setAttribute("publicationService", publicationService);
 
     } catch (Exception e) {
       logger.severe("Initialization failed: " + e.getMessage());

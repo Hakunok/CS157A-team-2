@@ -33,11 +33,8 @@ public class AuthorResource {
   @GET
   @Path("/me")
   public Response getMyAuthorProfile() {
-    if (!AuthUtil.hasPermission(request, "AUTHOR"))
-      return JsonUtil.forbidden("Author access required.");
-
     try {
-      int userId = AuthUtil.getUserId(request);
+      int userId = AuthUtil.requireAuthorUserId(request);
       AuthorResponse author = authorService.getByUserId(userId);
       return JsonUtil.ok(author);
     } catch (EntityNotFoundException e) {
@@ -48,14 +45,11 @@ public class AuthorResource {
   /**
    * AUTHOR: Update their own bio
    */
-  @PUT
+  @PATCH
   @Path("/me")
   public Response updateBio(AuthorUpdateRequest req) {
-    if (!AuthUtil.hasPermission(request, "AUTHOR"))
-      return JsonUtil.forbidden("Author access required.");
-
     try {
-      int userId = AuthUtil.getUserId(request);
+      int userId = AuthUtil.requireAuthorUserId(request);
       AuthorResponse updated = authorService.updateBio(userId, req.bio());
       return JsonUtil.ok(updated);
     } catch (EntityNotFoundException e) {
@@ -68,11 +62,13 @@ public class AuthorResource {
    */
   @GET
   public Response getAllAuthors() {
-    if (!AuthUtil.hasPermission(request, "ADMIN"))
-      return JsonUtil.forbidden("Admin access required.");
-
-    List<AuthorResponse> authors = authorService.getAll();
-    return JsonUtil.ok(authors);
+    try {
+      AuthUtil.requirePermission(request, "ADMIN");
+      List<AuthorResponse> authors = authorService.getAll();
+      return JsonUtil.ok(authors);
+    } catch (Exception e) {
+      return JsonUtil.internalError("Failed to fetch authors.");
+    }
   }
 
   /**
@@ -80,10 +76,8 @@ public class AuthorResource {
    */
   @POST
   public Response createExternalAuthor(AuthorCreateRequest req) {
-    if (!AuthUtil.hasPermission(request, "AUTHOR"))
-      return JsonUtil.forbidden("Author access required.");
-
     try {
+      AuthUtil.requirePermission(request, "AUTHOR");
       AuthorResponse newAuthor = authorService.createNonPlatformAuthor(req);
       return Response.status(Response.Status.CREATED).entity(newAuthor).build();
     } catch (PersistenceException | ValidationException e) {
@@ -97,13 +91,10 @@ public class AuthorResource {
   @POST
   @Path("/link")
   public Response linkToExistingAuthor(@QueryParam("authorId") int authorId) {
-    if (!AuthUtil.hasPermission(request, "READER"))
-      return JsonUtil.forbidden("Only readers can link to authors.");
-
     try {
-      int userId = AuthUtil.getUserId(request);
+      int userId = AuthUtil.requireSignedInWithPermission(request, "READER");
       AuthorResponse linked = authorService.linkUserToAuthor(authorId, userId);
-      return Response.ok(linked).build();
+      return JsonUtil.ok(linked);
     } catch (EntityNotFoundException e) {
       return JsonUtil.notFound("Author not found.");
     } catch (PersistenceException e) {

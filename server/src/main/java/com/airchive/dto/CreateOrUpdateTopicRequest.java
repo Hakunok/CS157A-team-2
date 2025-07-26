@@ -2,6 +2,5 @@ package com.airchive.dto;
 
 public record CreateOrUpdateTopicRequest(
     String code,
-    String fullName,
-    String colorHex
+    String fullName
 ) {}

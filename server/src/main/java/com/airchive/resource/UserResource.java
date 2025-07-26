@@ -1,10 +1,12 @@
 package com.airchive.resource;
 
 import com.airchive.dto.AdminUpdateUserRequest;
-import com.airchive.dto.UpdateUserRequest;
+import com.airchive.dto.PartialUpdateUserRequest;
+import com.airchive.dto.SessionUser;
 import com.airchive.dto.UserResponse;
 import com.airchive.dto.ValidationRequest;
 import com.airchive.dto.ValidationResponse;
+import com.airchive.entity.Account;
 import com.airchive.exception.DataAccessException;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.ValidationException;
@@ -16,8 +18,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -39,14 +41,10 @@ public class UserResource {
   @GET
   @Path("/me")
   public Response getCurrentUser() {
-    if (!AuthUtil.isLoggedIn(request)) {
-      return JsonUtil.unauthorized("You must be signed in.");
-    }
-
-    int userId = AuthUtil.getUserId(request);
     try {
-      UserResponse user = userService.getUserById(userId);
-      return JsonUtil.ok(user);
+      int userId = AuthUtil.requireSignedIn(request);
+      Account user = userService.getUserById(userId);
+      return JsonUtil.ok(UserResponse.fromUser(user));
     } catch (EntityNotFoundException e) {
       return JsonUtil.badRequest(e.getMessage());
     } catch (Exception e) {
@@ -54,25 +52,21 @@ public class UserResource {
     }
   }
 
-  @PUT
+  @PATCH
   @Path("/me")
-  public Response updateUser(UpdateUserRequest updateRequest) {
-    if (!AuthUtil.isLoggedIn(request))
-      return JsonUtil.unauthorized("You must be signed in.");
-
-    int userId = AuthUtil.getUserId(request);
+  public Response partialUpdateUser(PartialUpdateUserRequest updateRequest) {
     try {
-      UserResponse updated = userService.updateUser(userId, updateRequest);
+      int userId = AuthUtil.requireSignedIn(request);
+      Account updated = userService.updateUser(userId, updateRequest);
 
       HttpSession session = request.getSession(false);
-      session.setAttribute("username", updated.username());
-      session.setAttribute("firstName", updated.firstName());
-      session.setAttribute("lastName", updated.lastName());
-      session.setAttribute("permission", updated.permission());
+      if (session != null) {
+        session.setAttribute("user", SessionUser.from(updated));
+      }
 
-      return JsonUtil.ok(updated);
+      return JsonUtil.ok(UserResponse.fromUser(updated));
 
-    } catch (EntityNotFoundException e) {
+    } catch (EntityNotFoundException | ValidationException e) {
       return JsonUtil.badRequest(e.getMessage());
     } catch (DataAccessException e) {
       return JsonUtil.internalError(e.getMessage());
@@ -81,16 +75,15 @@ public class UserResource {
     }
   }
 
-  @PUT
+  @PATCH
   @Path("/{userId}")
   public Response adminUpdateUser(@PathParam("userId") int userId, AdminUpdateUserRequest updateRequest) {
-    if (!AuthUtil.hasPermission(request, "ADMIN")) {
-      return JsonUtil.forbidden("Admin access required.");
-    }
-
     try {
-      UserResponse updated = userService.adminUpdateUser(userId, updateRequest);
-      return JsonUtil.ok(updated);
+      AuthUtil.requirePermission(request, "ADMIN");
+
+      Account updated = userService.adminUpdateUser(userId, updateRequest);
+      return JsonUtil.ok(UserResponse.fromUser(updated));
+
     } catch (ValidationException | EntityNotFoundException e) {
       return JsonUtil.badRequest(e.getMessage());
     } catch (DataAccessException e) {
@@ -128,33 +121,21 @@ public class UserResource {
     }
   }
 
-  /**
-   * Validate password strength
-   */
   @POST
   @Path("/validation/password")
   public Response validatePassword(ValidationRequest request) {
-    ValidationResponse result = userService.validatePassword(request.value());
-    return JsonUtil.ok(result);
+    return JsonUtil.ok(userService.validatePassword(request.value()));
   }
 
-  /**
-   * Validate first name format
-   */
   @POST
   @Path("/validation/firstname")
   public Response validateFirstName(ValidationRequest request) {
-    ValidationResponse result = userService.validateFirstName(request.value());
-    return JsonUtil.ok(result);
+    return JsonUtil.ok(userService.validateFirstName(request.value()));
   }
 
-  /**
-   * Validate last name format
-   */
   @POST
   @Path("/validation/lastname")
   public Response validateLastName(ValidationRequest request) {
-    ValidationResponse result = userService.validateLastName(request.value());
-    return JsonUtil.ok(result);
+    return JsonUtil.ok(userService.validateLastName(request.value()));
   }
 }

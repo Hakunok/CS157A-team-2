@@ -25,3 +25,4 @@ npm run dev
 ## Build
 we will use `npm run build` to get our static files and put them in our java backend webapp/ 
 directory and build the .war file when its time to submit so that Tomcat runs everything.
+

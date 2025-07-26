@@ -2,7 +2,7 @@ package com.airchive.service;
 
 import com.airchive.db.Transaction;
 import com.airchive.entity.AuthorRequest;
-import com.airchive.entity.User;
+import com.airchive.entity.Account;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.PersistenceException;
 import com.airchive.repository.AuthorRepository;
@@ -23,9 +23,9 @@ public class AuthorRequestService {
   }
 
   public AuthorRequest createRequest(int userId) throws PersistenceException {
-    User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
+    Account user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-    if (user.permission().equals(User.Permission.AUTHOR) || user.permission().equals(User.Permission.ADMIN)) {
+    if (user.permission().equals(Account.Permission.AUTHOR) || user.permission().equals(Account.Permission.ADMIN)) {
       throw new PersistenceException("This user is already an author or admin.");
     }
 
@@ -48,15 +48,15 @@ public class AuthorRequestService {
         throw new PersistenceException("Request is not pending.");
       }
 
-      User user = userRepository.findById(request.userId())
+      Account user = userRepository.findById(request.userId())
           .orElseThrow(() -> new EntityNotFoundException("User not found."));
 
-      if (user.permission() == User.Permission.AUTHOR || user.permission() == User.Permission.ADMIN) {
+      if (user.permission() == Account.Permission.AUTHOR || user.permission() == Account.Permission.ADMIN) {
         throw new PersistenceException("User is already an author or admin.");
       }
 
       authorRequestRepository.updateStatus(requestId, AuthorRequest.Status.APPROVED, conn);
-      userRepository.updatePermission(request.userId(), User.Permission.AUTHOR, conn);
+      userRepository.updatePermission(request.userId(), Account.Permission.AUTHOR, conn);
       authorRepository.createFromUser(user, conn);
 
       tx.commit();

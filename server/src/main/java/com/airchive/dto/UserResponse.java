@@ -1,6 +1,6 @@
 package com.airchive.dto;
 
-import com.airchive.entity.User;
+import com.airchive.entity.Account;
 import java.time.LocalDateTime;
 
 public record UserResponse(
@@ -10,11 +10,10 @@ public record UserResponse(
     String lastName,
     String email,
     String permission,
-    String status,
     LocalDateTime createdAt
 ) {
 
-  public static UserResponse fromUser(User user) {
+  public static UserResponse fromUser(Account user) {
     return new UserResponse(
         user.id(),
         user.username(),
@@ -22,7 +21,6 @@ public record UserResponse(
         user.lastName(),
         user.email(),
         user.permission().name(),
-        user.status().name(),
         user.createdAt()
     );
   }

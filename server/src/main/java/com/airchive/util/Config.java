@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-
+/**
+ * Utility class for loading and retrieving configuration properties
+ * from a predefined properties file located in the classpath.
+ */
 public class Config {
   private static final Properties properties = new Properties();
 

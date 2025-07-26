@@ -3,6 +3,8 @@ package com.airchive.resource;
 import com.airchive.dto.CreatePublicationRequest;
 import com.airchive.dto.PublicationResponse;
 import com.airchive.dto.UpdatePublicationRequest;
+import com.airchive.exception.EntityNotFoundException;
+import com.airchive.exception.PersistenceException;
 import com.airchive.exception.ValidationException;
 import com.airchive.service.AuthorService;
 import com.airchive.service.PublicationService;
@@ -46,7 +48,7 @@ public class PublicationResource {
   @Path("/{id}")
   public Response getById(@PathParam("id") int pubId) {
     try {
-      return Response.ok(publicationService.view(pubId)).build();
+      return JsonUtil.ok(publicationService.view(pubId));
     } catch (Exception e) {
       return JsonUtil.notFound("Publication not found.");
     }
@@ -57,12 +59,8 @@ public class PublicationResource {
    */
   @POST
   public Response create(CreatePublicationRequest req) {
-    if (!AuthUtil.hasPermission(request, "AUTHOR")) {
-      return JsonUtil.forbidden("Only authors can create publications.");
-    }
-
     try {
-      int userId = AuthUtil.getUserId(request);
+      int userId = AuthUtil.requireAuthorUserId(request);
       PublicationResponse pub = publicationService.createPublication(userId, req);
       return JsonUtil.created(pub);
     } catch (ValidationException e) {
@@ -73,36 +71,32 @@ public class PublicationResource {
   }
 
   /**
-   * AUTHOR: Update your own publication
+   * AUTHOR: Update your own submitted publication
    */
-  @PUT
+  @PATCH
   @Path("/{id}")
   public Response update(@PathParam("id") int pubId, UpdatePublicationRequest req) {
-    if (!AuthUtil.hasPermission(request, "AUTHOR")) {
-      return JsonUtil.forbidden("Only authors can update publications.");
-    }
-
     try {
-      int userId = AuthUtil.getUserId(request);
+      int userId = AuthUtil.requireAuthorUserId(request);
       PublicationResponse updated = publicationService.update(pubId, userId, req);
       return JsonUtil.ok(updated);
+    } catch (EntityNotFoundException e) {
+      return JsonUtil.notFound("Publication not found.");
+    } catch (PersistenceException e) {
+      return JsonUtil.forbidden(e.getMessage());
     } catch (Exception e) {
       return JsonUtil.internalError("Failed to update publication.");
     }
   }
 
   /**
-   * AUTHOR: Get all your authored publications
+   * AUTHOR: Get all publications where you're listed as an author
    */
   @GET
   @Path("/me")
-  public Response getMyPublications() {
-    if (!AuthUtil.hasPermission(request, "AUTHOR")) {
-      return JsonUtil.forbidden("Only authors can access this.");
-    }
-
+  public Response getPublicationsByAuthor() {
     try {
-      int userId = AuthUtil.getUserId(request);
+      int userId = AuthUtil.requireAuthorUserId(request);
       int authorId = authorService.getAuthorByUserId(userId).id();
       List<PublicationResponse> pubs = publicationService.getByAuthorId(authorId);
       return JsonUtil.ok(pubs);
@@ -112,16 +106,28 @@ public class PublicationResource {
   }
 
   /**
-   * AUTHOR or READER: Like a publication (increments like count)
+   * AUTHOR: Get all publications you submitted
+   */
+  @GET
+  @Path("/submitter")
+  public Response getPublicationsISubmitted() {
+    try {
+      int userId = AuthUtil.requireAuthorUserId(request);
+      List<PublicationResponse> pubs = publicationService.getBySubmitterId(userId);
+      return JsonUtil.ok(pubs);
+    } catch (Exception e) {
+      return JsonUtil.internalError("Failed to fetch submitted publications.");
+    }
+  }
+
+  /**
+   * AUTHOR or READER: Like a publication
    */
   @POST
   @Path("/{id}/like")
   public Response like(@PathParam("id") int pubId) {
-    if (!AuthUtil.hasPermission(request, "AUTHOR", "READER")) {
-      return JsonUtil.forbidden("Only logged-in users can like publications.");
-    }
-
     try {
+      AuthUtil.requirePermission(request, "AUTHOR", "READER");
       publicationService.like(pubId);
       return JsonUtil.ok("Liked.");
     } catch (Exception e) {

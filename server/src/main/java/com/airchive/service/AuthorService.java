@@ -4,7 +4,7 @@ import com.airchive.db.Transaction;
 import com.airchive.dto.AuthorCreateRequest;
 import com.airchive.dto.AuthorResponse;
 import com.airchive.entity.Author;
-import com.airchive.entity.User;
+import com.airchive.entity.Account;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.PersistenceException;
 import com.airchive.exception.ValidationException;
@@ -46,7 +46,7 @@ public class AuthorService {
       tx.begin();
       Connection conn = tx.getConnection();
 
-      User user = userRepository.findById(userId, conn)
+      Account user = userRepository.findById(userId, conn)
           .orElseThrow(() -> new EntityNotFoundException("User not found."));
 
       Author author = authorRepository.findById(authorId, conn)
@@ -57,7 +57,7 @@ public class AuthorService {
       }
 
       authorRepository.linkUserToAuthor(authorId, user, conn);
-      userRepository.updatePermission(userId, User.Permission.AUTHOR, conn);
+      userRepository.updatePermission(userId, Account.Permission.AUTHOR, conn);
 
       tx.commit();
 

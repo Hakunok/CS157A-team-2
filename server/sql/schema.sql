@@ -1,15 +1,27 @@
 CREATE DATABASE IF NOT EXISTS airchive;
 USE airchive;
 
--- Unique record for every individual in the system, whether they have an account or not
+-- =============================================================================
+-- TABLE: person
+-- Stores unique information about an individual on the platform. This table
+-- decouples the concept of a person from a user account, allowing authors to
+-- be credited without having an account on the system.
+-- The identity_email attribute is a unique email used to identify the person,
+-- this is set on account creation or when an author credits another non-platform
+-- author.
+-- =============================================================================
 CREATE TABLE person (
     person_id INT PRIMARY KEY AUTO_INCREMENT,
     first_name VARCHAR(40) NOT NULL,
     last_name VARCHAR(40) NOT NULL,
-    contact_email VARCHAR(75) NOT NULL UNIQUE
+    identity_email VARCHAR(75) NOT NULL UNIQUE
 );
 
--- Stores the authentication and permission details for platform users
+-- =============================================================================
+-- TABLE: account
+-- Manages user accounts for the platform. Each account corresponds to a person
+-- and stores the account's authentication, role, and permission metadata.
+-- =============================================================================
 CREATE TABLE account (
     account_id INT PRIMARY KEY AUTO_INCREMENT,
     person_id INT NOT NULL UNIQUE,
@@ -22,7 +34,11 @@ CREATE TABLE account (
     FOREIGN KEY (person_id) REFERENCES person(person_id) ON DELETE CASCADE
 );
 
--- Tracks requests for 'READER' accounts to gain 'AUTHOR' privileges
+-- =============================================================================
+-- TABLE: author_request
+-- Tracks requests from users with the 'READER' role to be upgraded to the
+-- 'AUTHOR' role.
+-- =============================================================================
 CREATE TABLE author_request (
     account_id INT PRIMARY KEY,
     status ENUM('PENDING', 'APPROVED') DEFAULT 'PENDING',
@@ -30,14 +46,22 @@ CREATE TABLE author_request (
     FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE
 );
 
--- Stores the classification topics which are assigned to publications
+-- =============================================================================
+-- TABLE: topic
+-- A lookup table for categorizing publications based on a topic. This allows
+-- for filtering and personalized content recommendation functionalities.
+-- =============================================================================
 CREATE TABLE topic (
     topic_id INT PRIMARY KEY AUTO_INCREMENT,
     code VARCHAR(10) NOT NULL UNIQUE,
     full_name VARCHAR(50) NOT NULL UNIQUE
 );
 
--- Stores all published works on the platform
+-- =============================================================================
+-- TABLE: publication
+-- The core table holding metadata for all publications, such as papers,
+-- articles, and blog posts.
+-- =============================================================================
 CREATE TABLE publication (
     pub_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(150) NOT NULL,
@@ -54,66 +78,122 @@ CREATE TABLE publication (
     FOREIGN KEY (corresponding_author_id) REFERENCES person(person_id) ON DELETE SET NULL
 );
 
--- Relates publications to their authors (person)
+-- =============================================================================
+-- TABLE: publication_author
+-- A many-to-many relationship between publications and their authors (persons)
+-- and also stores their order of authorship.
+-- =============================================================================
 CREATE TABLE publication_author (
     pub_id INT NOT NULL,
     person_id INT NOT NULL,
     author_order INT NOT NULL,
     PRIMARY KEY (pub_id, person_id),
-    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE,
+    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE RESTRICT,
     FOREIGN KEY (person_id) REFERENCES person(person_id) ON DELETE RESTRICT
 );
 
--- Relates one ore more topics to a publication
+-- =============================================================================
+-- TABLE: publication_topic
+-- A many-to-many relationship between publications and topics. This table is
+-- used for filtering publications based on topics and providing personalized
+-- content recommendations.
+-- =============================================================================
 CREATE TABLE publication_topic (
     pub_id INT NOT NULL,
     topic_id INT NOT NULL,
     PRIMARY KEY (pub_id, topic_id),
-    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE,
+    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE RESTRICT,
     FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE
 );
 
--- Stores an account's personal collections of publications
+-- =============================================================================
+-- TABLE: collection
+-- Stores an account's collections (reading lists) and their metadata. Each
+-- account has 1 default collection.
+-- =============================================================================
 CREATE TABLE collection (
     collection_id INT PRIMARY KEY AUTO_INCREMENT,
     account_id INT NOT NULL,
     title VARCHAR(100) NOT NULL,
     description TEXT,
-    is_public BOOLEAN DEFAULT FALSE,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE
 );
 
--- Relates publications to a collection
+-- =============================================================================
+-- TABLE: collection_item
+-- A many-to-many relationship between collections and publications. This table
+-- stores the publications saved within an account's collection.
+-- =============================================================================
 CREATE TABLE collection_item (
     collection_id INT NOT NULL,
     pub_id INT NOT NULL,
     added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (collection_id, pub_id),
     FOREIGN KEY (collection_id) REFERENCES collection(collection_id) ON DELETE CASCADE,
-    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE
+    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE RESTRICT
 );
 
--- Stores an account's interactions with a publication
-CREATE TABLE publication_interaction (
-    interaction_id INT PRIMARY KEY AUTO_INCREMENT,
+-- =============================================================================
+-- TABLE: publication_view
+-- Tracks all instances of an account viewing a publication. This table allows
+-- for personalized content recommendations.
+-- =============================================================================
+CREATE TABLE publication_view (
     account_id INT NOT NULL,
     pub_id INT NOT NULL,
-    kind ENUM('VIEW', 'LIKE', 'SAVE') NOT NULL,
-    interacted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (account_id, pub_id, kind),
+    viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, pub_id, viewed_at),
     FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
-    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE CASCADE
+    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE RESTRICT
 );
 
--- Stores an account's affinity towards a topic
--- Used for account-based recommendations
+-- =============================================================================
+-- TABLE: publication_like
+-- Tracks an account's "like" interaction on a publication. This table allows
+-- for personalized content recommendations.
+-- =============================================================================
+CREATE TABLE publication_like (
+    account_id INT NOT NULL,
+    pub_id INT NOT NULL,
+    liked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, pub_id),
+    FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (pub_id) REFERENCES publication(pub_id) ON DELETE RESTRICT
+);
+
+-- =============================================================================
+-- TABLE: topic_affinity
+-- Stores a calculated score representing an account's affinity for a specific
+-- topic. This score is calculated from an account's interactions (views,
+-- likes, saves). These scores are used to provide personalized content
+-- recommendations.
+-- =============================================================================
 CREATE TABLE topic_affinity (
     account_id INT NOT NULL,
     topic_id INT NOT NULL,
-    score INT NOT NULL DEFAULT 0,
+    score DOUBLE NOT NULL DEFAULT 0,
     last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (account_id, topic_id),
     FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
     FOREIGN KEY (topic_id) REFERENCES topic(topic_id) ON DELETE CASCADE
+);
+
+-- =============================================================================
+-- TABLE: user_similarity
+-- Stores a calculated score representing an account's similarity with another
+-- account. This score is calculated from each account's topic affinity and
+-- publication interaction similarity. These scores are used to provide
+-- personalized content recommendations.
+-- =============================================================================
+CREATE TABLE user_similarity (
+    account_id INT NOT NULL,
+    other_account_id INT NOT NULL,
+    similarity_score DOUBLE NOT NULL DEFAULT 0,
+    calculated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, other_account_id),
+    FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
+    FOREIGN KEY (other_account_id) REFERENCES account(account_id) ON DELETE CASCADE
 );

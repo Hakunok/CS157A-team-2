@@ -1,15 +1,15 @@
 package com.airchive.resource;
 
+import com.airchive.dto.SessionUser;
+import com.airchive.entity.Account;
 import com.airchive.entity.AuthorRequest;
-import com.airchive.exception.DataAccessException;
-import com.airchive.exception.EntityNotFoundException;
-import com.airchive.exception.PersistenceException;
 import com.airchive.service.AuthorRequestService;
-import com.airchive.util.AuthUtil;
-import com.airchive.util.JsonUtil;
 
-import javax.inject.Inject;
+import java.util.Map;
+import javax.annotation.PostConstruct;
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.util.List;
@@ -19,121 +19,73 @@ import java.util.List;
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthorRequestResource {
 
-  @Inject
-  private AuthorRequestService authorRequestService;
+  @Context
+  private ServletContext context;
 
   @Context
   private HttpServletRequest request;
 
-  /**
-   * READER: Submit a request to become an author
-   */
+  private AuthorRequestService authorRequestService;
+
+  @PostConstruct
+  public void init() {
+    this.authorRequestService = (AuthorRequestService) context.getAttribute("authorRequestService");
+  }
+
+  private SessionUser getSessionUserOrThrow() {
+    HttpSession session = request.getSession(false);
+    if (session == null) throw new NotAuthorizedException("Login required.");
+    SessionUser user = (SessionUser) session.getAttribute("user");
+    if (user == null) throw new NotAuthorizedException("Login required.");
+    return user;
+  }
+
   @POST
-  public Response submitAuthorRequest() {
-    if (!AuthUtil.hasPermission(request, "READER")) {
-      return JsonUtil.forbidden("Only READERs can submit author requests.");
+  public Response submitRequest() {
+    SessionUser user = getSessionUserOrThrow();
+    if (user.role() != Account.Role.READER) {
+      throw new ForbiddenException("Only readers can submit author requests.");
     }
 
-    try {
-      Integer userId = AuthUtil.getUserId(request);
-      if (userId == null) {
-        return JsonUtil.unauthorized("User must be signed in.");
-      }
-
-      AuthorRequest newRequest = authorRequestService.createRequest(userId);
-      return Response.status(Response.Status.CREATED).entity(newRequest).build();
-    } catch (PersistenceException e) {
-      return JsonUtil.conflict("An author request already exists or could not be created.");
-    } catch (EntityNotFoundException e) {
-      return JsonUtil.notFound("User not found.");
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError("Database error while creating author request.");
-    }
+    AuthorRequest created = authorRequestService.submitRequest(user.accountId());
+    return Response.status(Response.Status.CREATED).entity(created).build();
   }
 
-  /**
-   * READER: View your own author request
-   */
   @GET
-  @Path("/me")
-  public Response getMyAuthorRequest() {
-    if (!AuthUtil.hasPermission(request, "READER")) {
-      return JsonUtil.forbidden("Only READERs can view their author request.");
+  @Path("/pending")
+  public Response getPendingRequests(@QueryParam("page") @DefaultValue("1") int page,
+      @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
+
+    SessionUser user = getSessionUserOrThrow();
+    if (!user.isAdmin()) {
+      throw new ForbiddenException("Only admins can view pending author requests.");
     }
 
-    try {
-      Integer userId = AuthUtil.getUserId(request);
-      if (userId == null) {
-        return JsonUtil.unauthorized("User must be signed in.");
-      }
-
-      AuthorRequest req = authorRequestService.getRequestByUserId(userId);
-      return Response.ok(req).build();
-    } catch (EntityNotFoundException e) {
-      return JsonUtil.notFound("No author request found for your account.");
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError("Database error.");
-    }
+    List<AuthorRequest> requests = authorRequestService.getPendingRequests(page, pageSize);
+    return Response.ok(requests).build();
   }
 
-  /**
-   * ADMIN: View all author requests
-   */
   @GET
-  public Response getAllRequests() {
-    if (!AuthUtil.hasPermission(request, "ADMIN")) {
-      return JsonUtil.forbidden("Admin access required.");
+  @Path("/pending/count")
+  public Response getPendingCount() {
+    SessionUser user = getSessionUserOrThrow();
+    if (!user.isAdmin()) {
+      throw new ForbiddenException("Only admins can view pending author requests.");
     }
 
-    try {
-      List<AuthorRequest> all = authorRequestService.getPendingRequests();
-      return Response.ok(all).build();
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError("Failed to fetch author requests.");
-    }
+    int count = authorRequestService.countPendingRequests();
+    return Response.ok(Map.of("count", count)).build();
   }
 
-  /**
-   * ADMIN: Approve a specific author request
-   */
-  @PATCH
-  @Path("/{id}/approve")
-  public Response approveRequest(@PathParam("id") int requestId) {
-    if (!AuthUtil.hasPermission(request, "ADMIN")) {
-      return JsonUtil.forbidden("Admin access required.");
+  @POST
+  @Path("/{accountId}/approve")
+  public Response approveRequest(@PathParam("accountId") int accountId) {
+    SessionUser user = getSessionUserOrThrow();
+    if (!user.isAdmin()) {
+      throw new ForbiddenException("Only admins can approve author requests.");
     }
 
-    try {
-      AuthorRequest result = authorRequestService.approveRequest(requestId);
-      return Response.ok(result).build();
-    } catch (EntityNotFoundException e) {
-      return JsonUtil.notFound("Author request not found.");
-    } catch (PersistenceException e) {
-      return JsonUtil.conflict("Failed to approve request: " + e.getMessage());
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError("Database error.");
-    }
-  }
-
-  /**
-   * ADMIN: Reject a specific author request
-   */
-  @PATCH
-  @Path("/{id}/reject")
-  public Response rejectRequest(@PathParam("id") int requestId) {
-    if (!AuthUtil.hasPermission(request, "ADMIN")) {
-      return JsonUtil.forbidden("Admin access required.");
-    }
-
-    try {
-      AuthorRequest result = authorRequestService.rejectRequest(requestId);
-      return Response.ok(result).build();
-    } catch (EntityNotFoundException e) {
-      return JsonUtil.notFound("Author request not found.");
-    } catch (PersistenceException e) {
-      return JsonUtil.conflict("Failed to reject request: " + e.getMessage());
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError("Database error.");
-    }
+    authorRequestService.approveRequest(accountId);
+    return Response.ok(Map.of("message", "Author request approved.")).build();
   }
 }

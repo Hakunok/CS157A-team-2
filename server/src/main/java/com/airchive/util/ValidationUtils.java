@@ -2,6 +2,7 @@ package com.airchive.util;
 
 
 import com.airchive.entity.Account;
+import com.airchive.entity.Person;
 import java.util.regex.Pattern;
 
 /**
@@ -9,20 +10,20 @@ import java.util.regex.Pattern;
  * by service classes before they are persisted in the database.
  * Criteria for validity is derived from application logic and data schema.
  */
-public class ValidationUtil {
+public class ValidationUtils {
   private static final Pattern EMAIL_PATTERN =
       Pattern.compile("^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$");
 
   private static final Pattern USERNAME_PATTERN =
       Pattern.compile("^[a-z0-9](?!.*[._-]{2})[a-z0-9._-]{1,18}[a-z0-9]$");
 
-  private ValidationUtil() {}
+  private ValidationUtils() {}
 
   /**
-   * Checks if a string is a valid email address for a {@link Account}.
+   * Checks if a string is a valid email address for a {@link Account} or {@link Person}.
    * Email must be 3-75 characters and match the email regex pattern.
    */
-  public static boolean isValidEmailForUser(String email) {
+  public static boolean isValidEmail(String email) {
     if (email == null) return false;
     String trimmed = email.trim();
     return trimmed.length() >= 3 && trimmed.length() <= 75 && EMAIL_PATTERN.matcher(trimmed).matches();
@@ -33,7 +34,7 @@ public class ValidationUtil {
    * Username must be 3-20 characters, start/end with alphanumeric, and cannot have consecutive
    * special characters.
    */
-  public static boolean isValidUsernameForUser(String username) {
+  public static boolean isValidUsername(String username) {
     if (username == null) return false;
     String trimmed = username.trim().toLowerCase();
     return trimmed.length() >= 3 && trimmed.length() <= 20
@@ -41,8 +42,7 @@ public class ValidationUtil {
   }
 
   /**
-   * Checks if a string is a valid first/last name for a {@link Account} or
-   * {@link com.airchive.entity.Author}.
+   * Checks if a string is a valid first/last name for a {@link Person}.
    * A valid name must be 1-40 characters and only contain alphabetic characters.
    */
   public static boolean isValidName(String name) {
@@ -57,7 +57,7 @@ public class ValidationUtil {
    * Checks if a string is a valid password for a {@link Account}.
    * A password must contain 8 or more characters.
    */
-  public static boolean isValidPasswordForUser(String password) {
+  public static boolean isValidPassword(String password) {
     return password != null && password.length() >= 8;
   }
 }

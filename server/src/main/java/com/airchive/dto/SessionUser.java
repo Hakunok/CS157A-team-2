@@ -3,15 +3,12 @@ package com.airchive.dto;
 import com.airchive.entity.Account;
 
 public record SessionUser(
-    Integer userId,
+    int accountId,
     String username,
-    String permission
+    boolean isAdmin,
+    Account.Role role
 ) {
-  public static SessionUser from(Account user) {
-    return new SessionUser(
-        user.id(),
-        user.username(),
-        user.permission().name()
-    );
+  public static SessionUser from(Account account) {
+    return new SessionUser(account.accountId(), account.username(), account.isAdmin(), account.role());
   }
 }

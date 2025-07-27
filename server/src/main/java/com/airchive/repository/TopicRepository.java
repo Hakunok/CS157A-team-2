@@ -7,8 +7,10 @@ import com.airchive.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Manages data persistence for {@link Topic} entities.
@@ -225,15 +227,28 @@ public class TopicRepository extends BaseRepository {
    * @return A {@link List} of matching topics, ordered alphabetically by full name.
    */
   public List<Topic> search(String query, Connection conn) {
+    String[] tokens = query.toLowerCase().split("\\s+");
+
+    String booleanQuery = Arrays.stream(tokens)
+        .filter(w -> w.length() > 2)
+        .map(w -> (w.length() >= 5 ? "+" + w + "*" : "+" + w))
+        .collect(Collectors.joining(" "));
+
     String like = "%" + query.toLowerCase() + "%";
-    return findMany(
-        conn,
-        "SELECT * FROM topic WHERE LOWER(code) LIKE ? OR LOWER(full_name) LIKE ? ORDER BY full_name ASC",
-        this::mapRowToTopic,
-        like,
-        like
-    );
+
+    String sql = """
+    SELECT *,
+           MATCH(full_name) AGAINST (? IN BOOLEAN MODE) AS relevance
+    FROM topic
+    WHERE (MATCH(full_name) AGAINST (? IN BOOLEAN MODE)
+           OR LOWER(code) LIKE ?)
+    ORDER BY relevance DESC, full_name ASC
+    LIMIT 10;
+    """;
+
+    return findMany(conn, sql, this::mapRowToTopic, booleanQuery, booleanQuery, like);
   }
+
 
   /**
    * Maps a row from the 'topic' table in a {@link ResultSet} to a {@link Topic} object.

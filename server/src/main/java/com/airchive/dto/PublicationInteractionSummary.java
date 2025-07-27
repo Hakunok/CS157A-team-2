@@ -5,9 +5,9 @@ import java.time.LocalDateTime;
 public record PublicationInteractionSummary(
     int pubId,
     PublicationInteractionType type,
-    LocalDateTime timestamp
-) {
+    LocalDateTime interacted_at) {
+
   public enum PublicationInteractionType {
-    VIEW, LIKE
+    LIKE, VIEW
   }
 }

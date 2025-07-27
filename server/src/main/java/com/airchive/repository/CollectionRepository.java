@@ -6,6 +6,7 @@ import com.airchive.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -207,6 +208,14 @@ public class CollectionRepository extends BaseRepository {
    * @throws SQLException if a database access error occurs.
    */
   private Collection mapRowToCollection(ResultSet rs) throws SQLException {
-    return null;
+    return new Collection(
+        rs.getInt("collection_id"),
+        rs.getInt("account_id"),
+        rs.getString("title"),
+        rs.getString("description"),
+        rs.getBoolean("is_default"),
+        rs.getBoolean("is_public"),
+        rs.getObject("created_at", LocalDateTime.class)
+    );
   }
 }

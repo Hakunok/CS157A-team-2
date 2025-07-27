@@ -1,89 +1,94 @@
 package com.airchive.service;
 
 import com.airchive.db.Transaction;
-import com.airchive.entity.AuthorRequest;
 import com.airchive.entity.Account;
+import com.airchive.entity.AuthorRequest;
 import com.airchive.exception.EntityNotFoundException;
-import com.airchive.exception.PersistenceException;
-import com.airchive.repository.AuthorRepository;
+import com.airchive.exception.ValidationException;
+import com.airchive.repository.AccountRepository;
 import com.airchive.repository.AuthorRequestRepository;
-import com.airchive.repository.UserRepository;
 import java.sql.Connection;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class AuthorRequestService {
   private final AuthorRequestRepository authorRequestRepository;
-  private final UserRepository userRepository;
-  private final AuthorRepository authorRepository;
+  private final AccountRepository accountRepository;
 
-  public AuthorRequestService(AuthorRequestRepository authorRequestRepository, UserRepository userRepository, AuthorRepository authorRepository) {
+
+  public AuthorRequestService(
+      AuthorRequestRepository authorRequestRepository,
+      AccountRepository accountRepository
+  ) {
     this.authorRequestRepository = authorRequestRepository;
-    this.userRepository = userRepository;
-    this.authorRepository = authorRepository;
+    this.accountRepository = accountRepository;
   }
 
-  public AuthorRequest createRequest(int userId) throws PersistenceException {
-    Account user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("User not found"));
+  public AuthorRequest submitRequest(int accountId) {
+    Account account = accountRepository.findById(accountId)
+        .orElseThrow(() -> new EntityNotFoundException("Account not found."));
 
-    if (user.permission().equals(Account.Permission.AUTHOR) || user.permission().equals(Account.Permission.ADMIN)) {
-      throw new PersistenceException("This user is already an author or admin.");
+    if (account.role() != Account.Role.READER) {
+      throw new ValidationException("Account must be a reader to submit an author request.");
     }
 
-    if (authorRequestRepository.hasPendingRequest(userId)) {
-      throw new PersistenceException("This user already has a pending request.");
+    if (authorRequestRepository.hasPendingRequest(accountId)) {
+      throw new ValidationException("Account already has a pending author request.");
     }
 
-    return authorRequestRepository.create(userId);
+    AuthorRequest req = new AuthorRequest(accountId, AuthorRequest.Status.PENDING,
+        LocalDateTime.now());
+    return authorRequestRepository.create(req);
   }
 
-  public AuthorRequest approveRequest(int requestId) throws EntityNotFoundException, PersistenceException {
+  public void approveRequest(int accountId) {
     try (Transaction tx = new Transaction()) {
       tx.begin();
       Connection conn = tx.getConnection();
 
-      AuthorRequest request = authorRequestRepository.findById(requestId)
-          .orElseThrow(() -> new EntityNotFoundException("Author request not found."));
+      AuthorRequest req = authorRequestRepository.findByAccountId(accountId, conn)
+          .orElseThrow(() -> new EntityNotFoundException("Account has no pending author request."));
 
-      if (request.status() != AuthorRequest.Status.PENDING) {
-        throw new PersistenceException("Request is not pending.");
+      if (req.status() != AuthorRequest.Status.PENDING) {
+        throw new ValidationException("Only pending requests can be approved.");
       }
 
-      Account user = userRepository.findById(request.userId())
-          .orElseThrow(() -> new EntityNotFoundException("User not found."));
+      Account account = accountRepository.findById(accountId, conn)
+          .orElseThrow(() -> new EntityNotFoundException("Account not found."));
 
-      if (user.permission() == Account.Permission.AUTHOR || user.permission() == Account.Permission.ADMIN) {
-        throw new PersistenceException("User is already an author or admin.");
-      }
+      Account promoted = new Account(
+          account.accountId(),
+          account.personId(),
+          account.email(),
+          account.username(),
+          account.passwordHash(),
+          Account.Role.AUTHOR,
+          account.isAdmin(),
+          account.createdAt()
+      );
 
-      authorRequestRepository.updateStatus(requestId, AuthorRequest.Status.APPROVED, conn);
-      userRepository.updatePermission(request.userId(), Account.Permission.AUTHOR, conn);
-      authorRepository.createFromUser(user, conn);
+      accountRepository.updateRole(promoted, conn);
+
+      authorRequestRepository.updateStatus(accountId, AuthorRequest.Status.APPROVED, conn);
 
       tx.commit();
-      return authorRequestRepository.findById(requestId)
-          .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve updated request."));
     }
   }
 
-  public AuthorRequest rejectRequest(int requestId) {
-    AuthorRequest request = authorRequestRepository.findById(requestId)
-        .orElseThrow(() -> new EntityNotFoundException("Author request not found."));
-
-    if (request.status() != AuthorRequest.Status.PENDING) {
-      throw new PersistenceException("Request is not pending.");
-    }
-
-    authorRequestRepository.updateStatus(requestId, AuthorRequest.Status.REJECTED);
-    return authorRequestRepository.findById(requestId)
-        .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve rejected request."));
+  public List<AuthorRequest> getPendingRequests(int page, int pageSize) {
+    return authorRequestRepository.findAllPending(page, pageSize);
   }
 
-  public List<AuthorRequest> getPendingRequests() {
-    return authorRequestRepository.findPending();
+  public int countPendingRequests() {
+    return authorRequestRepository.countPending();
   }
 
-  public AuthorRequest getRequestByUserId(int userId) {
-    return authorRequestRepository.findByUserId(userId)
-        .orElseThrow(() -> new EntityNotFoundException("No author request found for this user."));
+  public boolean hasPendingRequest(int accountId) {
+    return authorRequestRepository.hasPendingRequest(accountId);
+  }
+
+  public AuthorRequest getRequestByAccountId(int accountId) {
+    return authorRequestRepository.findByAccountId(accountId)
+        .orElseThrow(() -> new EntityNotFoundException("Account has no pending author request."));
   }
 }

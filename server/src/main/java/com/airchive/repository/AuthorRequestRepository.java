@@ -46,10 +46,9 @@ public class AuthorRequestRepository extends BaseRepository {
 
     executeInsertWithGeneratedKey(
         conn,
-        "INSERT INTO author_request (account_id, status, requested_at) VALUES (?, ?, ?)",
+        "INSERT INTO author_request (account_id, status, requested_at) VALUES (?, ?, NOW())",
         request.accountId(),
-        request.status().name(),
-        request.requestedAt()
+        request.status().name()
     );
 
     return findByAccountId(request.accountId(), conn)

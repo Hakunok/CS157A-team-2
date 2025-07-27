@@ -1,27 +1,26 @@
 package com.airchive.dto;
 
 import com.airchive.entity.Account;
-import java.time.LocalDateTime;
+import com.airchive.entity.Person;
 
 public record UserResponse(
-    Integer userId,
+    int accountId,
     String username,
-    String firstName,
-    String lastName,
     String email,
-    String permission,
-    LocalDateTime createdAt
+    boolean isAdmin,
+    Account.Role role,
+    String firstName,
+    String lastName
 ) {
-
-  public static UserResponse fromUser(Account user) {
+  public static UserResponse from(Account account, Person person) {
     return new UserResponse(
-        user.id(),
-        user.username(),
-        user.firstName(),
-        user.lastName(),
-        user.email(),
-        user.permission().name(),
-        user.createdAt()
+        account.accountId(),
+        account.username(),
+        account.email(),
+        account.isAdmin(),
+        account.role(),
+        person.firstName(),
+        person.lastName()
     );
   }
 }

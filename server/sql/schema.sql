@@ -182,18 +182,33 @@ CREATE TABLE topic_affinity (
 );
 
 -- =============================================================================
--- TABLE: user_similarity
--- Stores a calculated score representing an account's similarity with another
--- account. This score is calculated from each account's topic affinity and
--- publication interaction similarity. These scores are used to provide
--- personalized content recommendations.
+-- TABLE: author_affinity
+-- Stores a calculated score representing an account's affinity for a specific
+-- author. This score is calculated from an account's interactions (views,
+-- likes, saves). These scores are used to provide personalized content
+-- recommendations.
 -- =============================================================================
-CREATE TABLE user_similarity (
+CREATE TABLE author_affinity (
     account_id INT NOT NULL,
-    other_account_id INT NOT NULL,
-    similarity_score DOUBLE NOT NULL DEFAULT 0,
-    calculated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (account_id, other_account_id),
+    author_id INT NOT NULL,
+    score DOUBLE NOT NULL DEFAULT 0,
+    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (account_id, author_id),
     FOREIGN KEY (account_id) REFERENCES account(account_id) ON DELETE CASCADE,
-    FOREIGN KEY (other_account_id) REFERENCES account(account_id) ON DELETE CASCADE
+    FOREIGN KEY (author_id) REFERENCES person(person_id) ON DELETE CASCADE
 );
+
+-- FULLTEXT indices for our MATCH ... AGAINST ... searches
+CREATE FULLTEXT INDEX ft_pub_title ON publication(title);
+CREATE FULLTEXT INDEX ft_topic_fullname ON topic(full_name);
+
+CREATE INDEX idx_publication_published ON publication (published_at);
+CREATE INDEX idx_publication_status_kind ON publication (status, kind);
+
+CREATE INDEX idx_view_pub ON publication_view (pub_id);
+CREATE INDEX idx_like_pub ON publication_like (pub_id);
+
+CREATE INDEX idx_collection_pub ON collection_item (pub_id);
+
+CREATE INDEX idx_author_person ON publication_author (person_id);
+CREATE INDEX idx_topic_topic ON publication_topic (topic_id);

@@ -51,6 +51,20 @@ public class AccountRepository extends BaseRepository {
     return findById(newId, conn).orElseThrow(() -> new EntityNotFoundException("Account creation failed."));
   }
 
+  public void updateRole(Account account) {
+    withConnection(conn -> {
+      updateRole(account, conn);
+      return null;
+    });  }
+
+  public void updateRole(Account account, Connection conn) {
+    executeUpdate(conn,
+        "UPDATE account SET role = ? WHERE account_id = ?",
+        account.role().name(),
+        account.accountId()
+    );
+  }
+
   /**
    * Finds an account by its unique ID.
    *
@@ -182,6 +196,11 @@ public class AccountRepository extends BaseRepository {
   public boolean existsByEmail(String email, Connection conn) {
     return exists(conn, "SELECT EXISTS(SELECT 1 FROM account WHERE email = ?)", email);
   }
+
+  public void setAdmin(int accountId, boolean isAdmin, Connection conn) {
+    executeUpdate(conn, "UPDATE account SET is_admin = ? WHERE account_id = ?", isAdmin, accountId);
+  }
+
 
   /**
    * Maps a row from the 'account' table in a {@link ResultSet} to an {@link Account} object.

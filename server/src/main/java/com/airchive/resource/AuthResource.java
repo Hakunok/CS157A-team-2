@@ -1,18 +1,16 @@
 package com.airchive.resource;
 
+import com.airchive.dto.AccountRegisterRequest;
+import com.airchive.dto.LoginRequest;
 import com.airchive.dto.SessionUser;
-import com.airchive.dto.SigninRequest;
-import com.airchive.dto.SignupRequest;
 import com.airchive.dto.UserResponse;
 import com.airchive.entity.Account;
-import com.airchive.exception.AuthenticationException;
-import com.airchive.exception.DataAccessException;
-import com.airchive.exception.EntityNotFoundException;
-import com.airchive.exception.ValidationException;
-import com.airchive.service.UserService;
-import com.airchive.util.JsonUtil;
+import com.airchive.entity.Person;
+import com.airchive.service.PersonAccountService;
 
-import javax.inject.Inject;
+import java.util.Map;
+import javax.annotation.PostConstruct;
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
@@ -23,89 +21,83 @@ import javax.ws.rs.core.*;
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
-  @Inject
-  private UserService userService;
+  @Context
+  private ServletContext ctx;
 
   @Context
   private HttpServletRequest request;
 
-  @POST
-  @Path("/signin")
-  public Response signin(SigninRequest signinRequest) {
-    try {
-      Account user = userService.signin(signinRequest);
-      SessionUser sessionUser = SessionUser.from(user);
+  private PersonAccountService accountService;
 
-      HttpSession session = request.getSession(true);
-      session.setAttribute("user", sessionUser);
-      session.setMaxInactiveInterval(90 * 60);
-
-      return JsonUtil.ok(UserResponse.fromUser(user));
-    } catch (AuthenticationException e) {
-      return JsonUtil.unauthorized(e.getMessage());
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError(e.getMessage());
-    } catch (Exception e) {
-      return JsonUtil.internalError("Sign in failed");
-    }
+  @PostConstruct
+  public void init() {
+    this.accountService = (PersonAccountService) ctx.getAttribute("personAccountService");
   }
 
   @POST
-  @Path("/signup")
-  public Response signup(SignupRequest signupRequest) {
-    try {
-      Account user = userService.signup(signupRequest);
-      SessionUser sessionUser = SessionUser.from(user);
+  @Path("/register")
+  public Response register (AccountRegisterRequest req) {
+    Person person = new Person(0, req.firstName(), req.lastName(), req.email());
+    Account account = new Account(
+        0,
+        0,
+        req.email().toLowerCase(),
+        req.username().toLowerCase(),
+        req.password(),
+        Account.Role.READER,
+        false,
+        null
+    );
 
-      HttpSession session = request.getSession(true);
-      session.setAttribute("user", sessionUser);
-      session.setMaxInactiveInterval(90 * 60);
+    Account newAccount = accountService.createAccount(person, account);
+    Person newPerson = accountService.getPersonById(newAccount.personId());
 
-      return JsonUtil.created(UserResponse.fromUser(user));
-    } catch (ValidationException e) {
-      return JsonUtil.badRequest(e.getMessage());
-    } catch (DataAccessException e) {
-      return JsonUtil.internalError(e.getMessage());
-    } catch (Exception e) {
-      return JsonUtil.internalError("Sign up failed");
-    }
+    SessionUser sessionUser = SessionUser.from(newAccount);
+    request.getSession().setAttribute("user", sessionUser);
+
+    return Response.ok(UserResponse.from(newAccount, newPerson)).build();
   }
 
   @POST
-  @Path("/signout")
-  public Response signout() {
+  @Path("/login")
+  public Response login (LoginRequest req) {
+    Account account = accountService.login(req.usernameOrEmail().toLowerCase(), req.password());
+    Person person = accountService.getPersonById(account.personId());
+
+    SessionUser sessionUser = SessionUser.from(account);
+    request.getSession().setAttribute("user", sessionUser);
+
+    return Response.ok(UserResponse.from(account, person)).build();
+  }
+
+  @POST
+  @Path("/logout")
+  public Response logout () {
     HttpSession session = request.getSession(false);
     if (session != null) {
       session.invalidate();
     }
-    return JsonUtil.ok("Successfully signed out");
+    return Response.ok(Map.of("message", "Logged out.")).build();
   }
 
-  @POST
-  @Path("/session/refresh")
-  public Response refreshSession() {
+  @GET
+  @Path("/me")
+  public Response getMe () {
+    SessionUser user = getSessionUserOrThrow();
+    Account account = accountService.getAccountById(user.accountId());
+    Person person = accountService.getPersonById(account.personId());
+    return Response.ok(UserResponse.from(account, person)).build();
+  }
+
+  private SessionUser getSessionUserOrThrow() {
     HttpSession session = request.getSession(false);
     if (session == null) {
-      return JsonUtil.unauthorized("Not signed in.");
+      throw new NotAuthorizedException("Login required.");
     }
-
-    SessionUser sessionUser = (SessionUser) session.getAttribute("user");
-    if (sessionUser == null) {
-      return JsonUtil.unauthorized("Invalid session.");
+    SessionUser user = (SessionUser) session.getAttribute("user");
+    if (user == null) {
+      throw new NotAuthorizedException("Login required.");
     }
-
-    try {
-      Account updatedUser = userService.getUserById(sessionUser.userId());
-
-      session.setAttribute("user", SessionUser.from(updatedUser));
-
-      return JsonUtil.ok(UserResponse.fromUser(updatedUser));
-
-    } catch (EntityNotFoundException e) {
-      session.invalidate();
-      return JsonUtil.unauthorized("Your account no longer exists.");
-    } catch (Exception e) {
-      return JsonUtil.internalError("Failed to refresh session.");
-    }
+    return user;
   }
 }

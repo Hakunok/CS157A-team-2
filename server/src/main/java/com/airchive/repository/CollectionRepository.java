@@ -6,6 +6,7 @@ import com.airchive.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,11 +22,7 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if the creation fails and the new collection cannot be retrieved.
    */
   public Collection createDefaultCollection(int accountId) {
-    try (Connection conn = getConnection()) {
-      return createDefaultConnection(accountId, conn);
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed creation", e);
-    }
+    return withConnection(conn -> createDefaultCollection(accountId, conn));
   }
 
   /**
@@ -40,26 +37,17 @@ public class CollectionRepository extends BaseRepository {
    */
   public Collection createDefaultCollection(int accountId, Connection conn) {
     if (existsDefaultCollection(accountId, conn)) {
-      throw ValidationException("Default Col exists");
+      throw new ValidationException("Default collection exists");
     }
     String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
-                     "VALUES (?, 'Saved', 'Default collection for saved items', TRUE, FALSE)";
-    try (PreparedStatement stm = conn.PreparedStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stm.set(1, accountId);
-      int affRows = stm.executeUpdate();  
-      if (affRows == 0) {
-        throw new RuntimeException("Default creation failed, No rows affected");
-      }
-      try (ResultSet rs = stm.getGeneratedKeys()) {
-        if (rs.next()) {
-          int collectionID = rs.getInt(1);
-          return findById(collectionID, conn).orElseThrow(() -> new EntityNotFoundException("Retrieval of created Default Collection failed"));
-        }
-      }
-      throw new EntityNotFoundException("Failed creation");
-    } catch (SQLException e) {
-      throw new RuntimeException("Database error while creating", e);
-    }
+                     "VALUES (?, 'Saved', 'Your saved publications', TRUE, FALSE)";
+    int newId = executeInsertWithGeneratedKey(
+        conn,
+        sql,
+        accountId
+    );
+
+    return findById(newId, conn).orElseThrow(() -> new EntityNotFoundException("Retrieval of created Default Collection failed"));
   }
 
   /**
@@ -71,11 +59,7 @@ public class CollectionRepository extends BaseRepository {
    * @throws ValidationException if the collection is marked as default.
    */
   public Collection create(Collection collection) {
-    try (Connection conn = getConnection()) {
-      return createDefaultConnection(collection, conn);
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to create collection", e);
-    }
+    return withConnection(conn -> create(collection, conn));
   }
 
   /**
@@ -93,27 +77,17 @@ public class CollectionRepository extends BaseRepository {
     }
     String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
                      "VALUES (?, ?, ?, ?, ?)";
-    try (PreparedStatement stm = conn.PreparedStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stm.setInt(1, collection.getAccountId());
-      stm.setString(2, collection.getTitle());
-      stm.setString(3, collection.getDescription());
-      stm.setBoolean(4, collection.isDefault());
-      stm.setBoolean(5, collection.isPublic());
-      int affRows = stm.executeUpdate();  
-      if (affRows == 0) {
-        throw new RuntimeException("Default creation failed, No rows affected");
-      }
-      try (ResultSet rs = stm.getGeneratedKeys()) {
-        if (rs.next()) {
-          int collectionID = rs.getInt(1);
-          collection.setCollectionId(collectionID);
-          return collection;
-        }
-      }
-      throw new EntityNotFoundException("Failed creation");
-    } catch (SQLException e) {
-      throw new RuntimeException("Database error while creating", e);
-    }
+    int newId = executeInsertWithGeneratedKey(
+        conn,
+        sql,
+        collection.accountId(),
+        collection.title(),
+        collection.description(),
+        false,
+        collection.isPublic()
+    );
+
+    return findById(newId, conn).orElseThrow(() -> new EntityNotFoundException("Failed creation"));
   }
 
   /**
@@ -123,11 +97,7 @@ public class CollectionRepository extends BaseRepository {
    * @return An {@link Optional} containing the found Collection, or empty if not found.
    */
   public Optional<Collection> findById(int collectionId) {
-    try (Connection conn = getConnection()) {
-      return findById(collectionId, conn);
-    } catch (SQLException e) {
-      throw new RuntimeException("Failed to find collection", e);
-    }
+    return withConnection(conn -> findById(collectionId, conn));
   }
 
   /**
@@ -139,22 +109,11 @@ public class CollectionRepository extends BaseRepository {
    */
   public Optional<Collection> findById(int collectionId, Connection conn) {
     String sql = "SELECT * FROM collection WHERE collection_id = ?" ;
-    
-    try (PreparedStatement stm = conn.PreparedStatement(sql) {
-      stm.set(1, collectionId);
-      int affRows = stm.executeUpdate();  
-      if (affRows == 0) {
-        throw new RuntimeException("Default creation failed, No rows affected");
-      }
-      try (ResultSet rs = stm.executeQuery()) {
-        if (rs.next()) {
-          return Optional.of(mapRowToCollection(rs));
-        }
-        return Optional.empty();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Database error while finding", e);
-    }
+    return findOne(
+        conn,
+        sql,
+        this::mapRowToCollection,
+        collectionId);
   }
 
   /**
@@ -274,6 +233,14 @@ public class CollectionRepository extends BaseRepository {
    * @throws SQLException if a database access error occurs.
    */
   private Collection mapRowToCollection(ResultSet rs) throws SQLException {
-    return null;
+    return new Collection(
+        rs.getInt("collection_id"),
+        rs.getInt("account_id"),
+        rs.getString("title"),
+        rs.getString("description"),
+        rs.getBoolean("is_default"),
+        rs.getBoolean("is_public"),
+        rs.getObject("created_at", LocalDateTime.class)
+    );
   }
 }

@@ -50,9 +50,9 @@ public class CollectionRepository extends BaseRepository {
       if (affRows == 0) {
         throw new RuntimeException("Default creation failed, No rows affected");
       }
-      try (ResultSet gks = stm.getGeneratedKeys()) {
-        if (gks.next()) {
-          int collectionID = gks.getInt(1);
+      try (ResultSet rs = stm.getGeneratedKeys()) {
+        if (rs.next()) {
+          int collectionID = rs.getInt(1);
           return findById(collectionID, conn).orElseThrow(() -> new EntityNotFoundException("Retrieval of created Default Collection failed"));
         }
       }
@@ -71,7 +71,11 @@ public class CollectionRepository extends BaseRepository {
    * @throws ValidationException if the collection is marked as default.
    */
   public Collection create(Collection collection) {
-    return null;
+    try (Connection conn = getConnection()) {
+      return createDefaultConnection(collection, conn);
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to create collection", e);
+    }
   }
 
   /**
@@ -84,7 +88,32 @@ public class CollectionRepository extends BaseRepository {
    * @throws ValidationException if the collection is marked as default.
    */
   public Collection create(Collection collection, Connection conn) {
-    return null;
+    if (collection.isDefault()) {
+      throw new ValidationException("Cannot create default collection");
+    }
+    String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
+                     "VALUES (?, ?, ?, ?, ?)";
+    try (PreparedStatement stm = conn.PreparedStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stm.setInt(1, collection.getAccountId());
+      stm.setString(2, collection.getTitle());
+      stm.setString(3, collection.getDescription());
+      stm.setBoolean(4, collection.isDefault());
+      stm.setBoolean(5, collection.isPublic());
+      int affRows = stm.executeUpdate();  
+      if (affRows == 0) {
+        throw new RuntimeException("Default creation failed, No rows affected");
+      }
+      try (ResultSet rs = stm.getGeneratedKeys()) {
+        if (rs.next()) {
+          int collectionID = rs.getInt(1);
+          collection.setCollectionId(collectionID);
+          return collection;
+        }
+      }
+      throw new EntityNotFoundException("Failed creation");
+    } catch (SQLException e) {
+      throw new RuntimeException("Database error while creating", e);
+    }
   }
 
   /**
@@ -94,7 +123,11 @@ public class CollectionRepository extends BaseRepository {
    * @return An {@link Optional} containing the found Collection, or empty if not found.
    */
   public Optional<Collection> findById(int collectionId) {
-    return Optional.empty();
+    try (Connection conn = getConnection()) {
+      return findById(collectionId, conn);
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to find collection", e);
+    }
   }
 
   /**
@@ -105,7 +138,23 @@ public class CollectionRepository extends BaseRepository {
    * @return An {@link Optional} containing the found Collection, or empty if not found.
    */
   public Optional<Collection> findById(int collectionId, Connection conn) {
-    return Optional.empty();
+    String sql = "SELECT * FROM collection WHERE collection_id = ?" ;
+    
+    try (PreparedStatement stm = conn.PreparedStatement(sql) {
+      stm.set(1, collectionId);
+      int affRows = stm.executeUpdate();  
+      if (affRows == 0) {
+        throw new RuntimeException("Default creation failed, No rows affected");
+      }
+      try (ResultSet rs = stm.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(mapRowToCollection(rs));
+        }
+        return Optional.empty();
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException("Database error while finding", e);
+    }
   }
 
   /**

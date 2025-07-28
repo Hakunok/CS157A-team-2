@@ -1,6 +1,7 @@
 package com.airchive.service;
 
 import com.airchive.db.Transaction;
+import com.airchive.dto.SessionUser;
 import com.airchive.entity.Account;
 import com.airchive.entity.Person;
 import com.airchive.exception.AuthenticationException;
@@ -10,10 +11,9 @@ import com.airchive.repository.AccountRepository;
 import com.airchive.repository.CollectionRepository;
 import com.airchive.repository.PersonRepository;
 import com.airchive.util.PasswordUtils;
+import com.airchive.util.SecurityUtils;
 import com.airchive.util.ValidationUtils;
 import java.sql.Connection;
-import java.util.HashMap;
-import java.util.Map;
 
 public class PersonAccountService {
 
@@ -32,16 +32,17 @@ public class PersonAccountService {
 
   public Account createAccount(Person person, Account account) {
 
-    Map<String, String> errors = validateAccountFields(
-        account.username(),
-        account.email(),
-        account.passwordHash(),
-        person.firstName(),
-        person.lastName()
-    );
+    ValidationUtils.validateUsername(account.username());
+    ValidationUtils.validateEmail(account.email());
+    ValidationUtils.validatePassword(account.passwordHash());
+    ValidationUtils.validateName(person.firstName());
+    ValidationUtils.validateName(person.lastName());
 
-    if (!errors.isEmpty()) {
-      throw new ValidationException("Account validation failed.");
+    if (accountRepository.existsByUsername(account.username())) {
+      throw new ValidationException("Username is already taken.");
+    }
+    if (accountRepository.existsByEmail(account.email()) || personRepository.existsByIdentityEmail(person.identityEmail())) {
+      throw new ValidationException("Email is already in use.");
     }
 
     try (Transaction tx = new Transaction()) {
@@ -71,31 +72,13 @@ public class PersonAccountService {
   }
 
   public Person createPerson(Person person) {
-    Map<String, String> errors = new HashMap<>();
+    ValidationUtils.validateName(person.firstName());
+    ValidationUtils.validateName(person.lastName());
+    ValidationUtils.validateEmail(person.identityEmail());
 
-    if (person.firstName() == null || person.firstName().isBlank()) {
-      errors.put("firstName", "First name is required.");
-    } else if (!ValidationUtils.isValidName(person.firstName())) {
-      errors.put("firstName", "First name must be letters only, up to 40 characters.");
-    }
-
-    if (person.lastName() == null || person.lastName().isBlank()) {
-      errors.put("lastName", "Last name is required.");
-    } else if (!ValidationUtils.isValidName(person.lastName())) {
-      errors.put("lastName", "Last name must be letters only, up to 40 characters.");
-    }
-
-    if (person.identityEmail() == null || person.identityEmail().isBlank()) {
-      errors.put("email", "Email is required.");
-    } else if (!ValidationUtils.isValidEmail(person.identityEmail())) {
-      errors.put("email", "Invalid email format.");
-    } else if (personRepository.existsByIdentityEmail(person.identityEmail().toLowerCase())
-        || accountRepository.existsByEmail(person.identityEmail().toLowerCase())) {
-      errors.put("email", "A person with this email already exists.");
-    }
-
-    if (!errors.isEmpty()) {
-      throw new ValidationException("Person validation failed for identity email: " + person.identityEmail());
+    if (personRepository.existsByIdentityEmail(person.identityEmail().toLowerCase()) ||
+        accountRepository.existsByEmail(person.identityEmail().toLowerCase())) {
+      throw new ValidationException("A person or account with this email already exists.");
     }
 
     return personRepository.create(person);
@@ -113,12 +96,14 @@ public class PersonAccountService {
     return account;
   }
 
-  public void makeAdmin(int accountId) {
+  public void makeAdmin(SessionUser requester, int accountIdToPromote) {
+    SecurityUtils.requireAdmin(requester);
+
     try (Transaction tx = new Transaction()) {
       tx.begin();
       Connection conn = tx.getConnection();
 
-      Account account = accountRepository.findById(accountId, conn)
+      Account account = accountRepository.findById(accountIdToPromote, conn)
           .orElseThrow(() -> new EntityNotFoundException("Account not found."));
 
       if (account.isAdmin()) {
@@ -126,7 +111,7 @@ public class PersonAccountService {
         return;
       }
 
-      accountRepository.setAdmin(accountId, true, conn);
+      accountRepository.setAdmin(accountIdToPromote, true, conn);
       tx.commit();
     }
   }
@@ -151,50 +136,11 @@ public class PersonAccountService {
         .orElseThrow(() -> new EntityNotFoundException("Account not found."));
   }
 
-  public Map<String, String> validateAccountFields(
-      String username,
-      String email,
-      String password,
-      String firstName,
-      String lastName
-  ) {
-    Map<String, String> errors = new HashMap<>();
+  public boolean usernameExists(String username) {
+    return accountRepository.existsByUsername(username);
+  }
 
-    if (username == null || username.isBlank()) {
-      errors.put("username", "Username is required.");
-    } else if (!ValidationUtils.isValidUsername(username)) {
-      errors.put("username", "Username must be 3–20 characters and contain only a-z, 0-9, ., _, or -.");
-    } else if (accountRepository.existsByUsername(username)) {
-      errors.put("username", "Username is already taken.");
-    }
-
-    if (email == null || email.isBlank()) {
-      errors.put("email", "Email is required.");
-    } else if (!ValidationUtils.isValidEmail(email.toLowerCase())) {
-      errors.put("email", "Invalid email format.");
-    } else if (accountRepository.existsByEmail(email.toLowerCase())
-        || personRepository.existsByIdentityEmail(email.toLowerCase())) {
-      errors.put("email", "Email is already in use.");
-    }
-
-    if (password == null || password.isBlank()) {
-      errors.put("password", "Password is required.");
-    } else if (!ValidationUtils.isValidPassword(password)) {
-      errors.put("password", "Password must be at least 8 characters.");
-    }
-
-    if (firstName == null || firstName.isBlank()) {
-      errors.put("firstName", "First name is required.");
-    } else if (!ValidationUtils.isValidName(firstName)) {
-      errors.put("firstName", "First name must be letters only, up to 40 characters.");
-    }
-
-    if (lastName == null || lastName.isBlank()) {
-      errors.put("lastName", "Last name is required.");
-    } else if (!ValidationUtils.isValidName(lastName)) {
-      errors.put("lastName", "Last name must be letters only, up to 40 characters.");
-    }
-
-    return errors;
+  public boolean emailExists(String email) {
+    return accountRepository.existsByEmail(email) || personRepository.existsByIdentityEmail(email);
   }
 }

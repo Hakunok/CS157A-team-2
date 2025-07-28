@@ -11,6 +11,8 @@ import com.airchive.repository.PublicationRepository;
 import com.airchive.repository.PublicationTopicRepository;
 import com.airchive.repository.RecommendationRepository;
 import com.airchive.repository.TopicRepository;
+import com.airchive.service.PublicationService;
+import com.airchive.service.TopicService;
 import com.airchive.service.AuthorRequestService;
 import com.airchive.service.PersonAccountService;
 import javax.servlet.ServletContext;
@@ -42,11 +44,16 @@ public class AppBootstrap implements ServletContextListener {
         accountRepository, collectionRepository);
     var authorRequestService = new AuthorRequestService(authorRequestRepository,
         accountRepository);
+    var topicService = new TopicService(topicRepository);
+    //var publicationService = new PublicationService(publicationRepository,);
 
 
     // Set up servlet context
     ctx.setAttribute("personAccountService", personAccountService);
     ctx.setAttribute("authorRequestService", authorRequestService);
+    ctx.setAttribute("topicService", topicService);
+    //ctx.setAttribute("publicationService", publicationService);
+
   }
 
   @Override

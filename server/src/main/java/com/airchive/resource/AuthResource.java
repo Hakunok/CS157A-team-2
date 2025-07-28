@@ -8,6 +8,9 @@ import com.airchive.entity.Account;
 import com.airchive.entity.Person;
 import com.airchive.service.PersonAccountService;
 
+import com.airchive.util.SecurityUtils;
+import com.airchive.util.ValidationUtils;
+import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletContext;
@@ -83,21 +86,63 @@ public class AuthResource {
   @GET
   @Path("/me")
   public Response getMe () {
-    SessionUser user = getSessionUserOrThrow();
-    Account account = accountService.getAccountById(user.accountId());
+    HttpSession session = request.getSession(false);
+    if (session == null) throw new NotAuthorizedException("Login required");
+
+    SessionUser sessionUser = (SessionUser) session.getAttribute("user");
+    if (sessionUser == null) throw new NotAuthorizedException("Login required");
+
+    Account account = accountService.getAccountById(sessionUser.accountId());
     Person person = accountService.getPersonById(account.personId());
+
+    session.setAttribute("user", SessionUser.from(account));
+
     return Response.ok(UserResponse.from(account, person)).build();
   }
 
-  private SessionUser getSessionUserOrThrow() {
-    HttpSession session = request.getSession(false);
-    if (session == null) {
-      throw new NotAuthorizedException("Login required.");
+  @POST
+  @Path("/validate")
+  public Response validate(AccountRegisterRequest req) {
+    Map<String, String> errors = new HashMap<>();
+
+    String username = req.username().toLowerCase().trim();
+    String email = req.email().toLowerCase().trim();
+
+    if (!ValidationUtils.isValidUsername(username)) {
+      errors.put("username", "Username must be 3–20 characters and contain only a-z, 0-9, ., _, or -.");
+    } else if (accountService.usernameExists(username)) {
+      errors.put("username", "Username is already taken.");
     }
-    SessionUser user = (SessionUser) session.getAttribute("user");
-    if (user == null) {
-      throw new NotAuthorizedException("Login required.");
+
+    if (!ValidationUtils.isValidEmail(email)) {
+      errors.put("email", "Invalid email format.");
+    } else if (accountService.emailExists(email)) {
+      errors.put("email", "Email is already in use.");
     }
-    return user;
+
+    if (!ValidationUtils.isValidPassword(req.password())) {
+      errors.put("password", "Password must be at least 8 characters.");
+    }
+
+    if (!ValidationUtils.isValidName(req.firstName())) {
+      errors.put("firstName", "First name must be letters only, up to 40 characters.");
+    }
+
+    if (!ValidationUtils.isValidName(req.lastName())) {
+      errors.put("lastName", "Last name must be letters only, up to 40 characters.");
+    }
+
+    return Response.ok(Map.of(
+        "valid", errors.isEmpty(),
+        "errors", errors
+    )).build();
+  }
+
+  @POST
+  @Path("/promote/{accountId}")
+  public Response promote(@PathParam("accountId") int accountId) {
+    SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
+    accountService.makeAdmin(user, accountId);
+    return Response.ok(Map.of("message", "Account promoted.")).build();
   }
 }

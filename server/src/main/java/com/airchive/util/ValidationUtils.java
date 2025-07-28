@@ -1,8 +1,6 @@
 package com.airchive.util;
 
-
-import com.airchive.entity.Account;
-import com.airchive.entity.Person;
+import com.airchive.exception.ValidationException;
 import java.util.regex.Pattern;
 
 /**
@@ -17,47 +15,85 @@ public class ValidationUtils {
   private static final Pattern USERNAME_PATTERN =
       Pattern.compile("^[a-z0-9](?!.*[._-]{2})[a-z0-9._-]{1,18}[a-z0-9]$");
 
+  private static final Pattern NAME_PATTERN =
+      Pattern.compile("^[A-Za-z'\\- ]+$");
+
+  private static final Pattern TOPIC_CODE_PATTERN =
+      Pattern.compile("^[a-z0-9-]+$");
+
   private ValidationUtils() {}
 
-  /**
-   * Checks if a string is a valid email address for a {@link Account} or {@link Person}.
-   * Email must be 3-75 characters and match the email regex pattern.
-   */
+  public static void validateEmail(String email) {
+    if (!isValidEmail(email)) {
+      throw new ValidationException("Invalid email address.");
+    }
+  }
+
   public static boolean isValidEmail(String email) {
-    if (email == null) return false;
-    String trimmed = email.trim();
-    return trimmed.length() >= 3 && trimmed.length() <= 75 && EMAIL_PATTERN.matcher(trimmed).matches();
+    return email != null
+        && email.trim().length() >= 3
+        && email.trim().length() <= 75
+        && EMAIL_PATTERN.matcher(email.trim()).matches();
   }
 
-  /**
-   * Checks if a string is a valid username for a {@link Account}.
-   * Username must be 3-20 characters, start/end with alphanumeric, and cannot have consecutive
-   * special characters.
-   */
+  public static void validateUsername(String username) {
+    if (!isValidUsername(username)) {
+      throw new ValidationException("Invalid username.");
+    }
+  }
+
   public static boolean isValidUsername(String username) {
-    if (username == null) return false;
-    String trimmed = username.trim().toLowerCase();
-    return trimmed.length() >= 3 && trimmed.length() <= 20
-        && USERNAME_PATTERN.matcher(trimmed).matches();
+    return username != null
+        && username.length() >= 3
+        && username.length() <= 20
+        && USERNAME_PATTERN.matcher(username.trim().toLowerCase()).matches();
   }
 
-  /**
-   * Checks if a string is a valid first/last name for a {@link Person}.
-   * A valid name must be 1-40 characters and only contain alphabetic characters.
-   */
+  public static void validateName(String name) {
+    if (!isValidName(name)) {
+      throw new ValidationException("Name must be 1–40 characters and alphabetic.");
+    }
+  }
+
   public static boolean isValidName(String name) {
-    if (name == null) return false;
-    String trimmed = name.trim();
-    return !trimmed.isEmpty()
-        && trimmed.length() <= 40
-        && trimmed.matches("^[A-Za-z'\\- ]+$");
+    return name != null
+        && !name.trim().isEmpty()
+        && name.trim().length() <= 40
+        && NAME_PATTERN.matcher(name.trim()).matches();
   }
 
-  /**
-   * Checks if a string is a valid password for a {@link Account}.
-   * A password must contain 8 or more characters.
-   */
+  public static void validatePassword(String password) {
+    if (!isValidPassword(password)) {
+      throw new ValidationException("Password must be at least 8 characters.");
+    }
+  }
+
   public static boolean isValidPassword(String password) {
     return password != null && password.length() >= 8;
+  }
+
+  public static void validateTopicCode(String code) {
+    if (!isValidTopicCode(code)) {
+      throw new ValidationException("Topic code must be 1–10 alphanumeric characters.");
+    }
+  }
+
+  public static boolean isValidTopicCode(String code) {
+    return code != null
+        && !code.trim().isEmpty()
+        && code.length() <= 10
+        && TOPIC_CODE_PATTERN.matcher(code).matches();
+  }
+
+  public static void validateTopicFullName(String fullName) {
+    if (!isValidTopicFullName(fullName)) {
+      throw new ValidationException("Topic name must be 1–50 characters.");
+    }
+  }
+
+  public static boolean isValidTopicFullName(String fullName) {
+    return fullName != null
+        && !fullName.trim().isEmpty()
+        && fullName.length() <= 50;
   }
 }

@@ -249,7 +249,6 @@ public class TopicRepository extends BaseRepository {
     return findMany(conn, sql, this::mapRowToTopic, booleanQuery, booleanQuery, like);
   }
 
-
   /**
    * Maps a row from the 'topic' table in a {@link ResultSet} to a {@link Topic} object.
    *

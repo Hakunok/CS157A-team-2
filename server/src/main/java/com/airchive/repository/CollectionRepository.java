@@ -123,7 +123,7 @@ public class CollectionRepository extends BaseRepository {
    * @return A {@link List} of collections, ordered by creation date descending.
    */
   public List<Collection> findByAccount(int accountId) {
-    return null;
+    return withConnection(conn -> findByAccount(accountId, conn));
   }
 
   /**
@@ -134,7 +134,12 @@ public class CollectionRepository extends BaseRepository {
    * @return A {@link List} of collections, ordered by creation date descending.
    */
   public List<Collection> findByAccount(int accountId, Connection conn) {
-    return null;
+    String sql = "SELECT * FROM collection WHERE account_id = ? ORDER BY created_at DESC" ;
+    return findOne(
+        conn,
+        sql,
+        this::mapRowToCollection,
+        accountId);
   }
 
   /**
@@ -144,7 +149,7 @@ public class CollectionRepository extends BaseRepository {
    * @return An {@link Optional} containing the default collection, or empty if not found.
    */
   public Optional<Collection> findDefaultCollectionByAccount(int accountId) {
-    return Optional.empty();
+    return withConnection(conn -> findDefaultCollectionByAccount(accountId, conn));
   }
 
   /**
@@ -155,7 +160,12 @@ public class CollectionRepository extends BaseRepository {
    * @return An {@link Optional} containing the default collection, or empty if not found.
    */
   public Optional<Collection> findDefaultCollectionByAccount(int accountId, Connection conn) {
-    return Optional.empty();
+   String sql = "SELECT * FROM collection WHERE account_id = ? AND is_default = TRUE" ;
+    return findOne(
+        conn,
+        sql,
+        this::mapRowToCollection,
+        accountId);
   }
 
   /**

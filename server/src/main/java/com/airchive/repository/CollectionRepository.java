@@ -175,7 +175,7 @@ public class CollectionRepository extends BaseRepository {
    * @return {@code true} if a default collection exists, {@code false} otherwise.
    */
   public boolean existsDefaultCollection(int accountId) {
-    return false;
+    return withConnection(conn -> existsDefaultCollection(accountId, conn));
   }
 
   /**
@@ -186,7 +186,12 @@ public class CollectionRepository extends BaseRepository {
    * @return {@code true} if a default collection exists, {@code false} otherwise.
    */
   public boolean existsDefaultCollection(int accountId, Connection conn) {
-    return false;
+   String sql = "SELECT * FROM collection WHERE account_id = ? AND is_default = TRUE LIMIT 1" ;
+    return findOne(
+        conn,
+        sql,
+        this::mapRowToCollection,
+        accountId);
   }
 
   /**
@@ -197,7 +202,7 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if no collection with the given ID is found.
    */
   public void updateVisibility(int collectionId, boolean isPublic) {
-
+    return withConnection(conn -> updateVisibility(collectionId, isPublic, conn));
   }
 
   /**
@@ -209,7 +214,13 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if no collection with the given ID is found.
    */
   public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
-
+    String sql = "UPDATE collection SET is_public = ? WHERE collection_id = ?" ;
+    return findOne(
+        conn,
+        sql,
+        this::mapRowToCollection,
+        collectionId,
+        isPublic);
   }
 
   /**
@@ -220,7 +231,7 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if the collection does not exist.
    */
   public void delete(int collectionId) {
-
+     return withConnection(conn -> delete(collectionId, conn));
   }
 
   /**
@@ -232,7 +243,21 @@ public class CollectionRepository extends BaseRepository {
    * @throws EntityNotFoundException if the collection does not exist.
    */
   public void delete(int collectionId, Connection conn) {
-
+    // Check if the collection is default
+    Optional<Collection> collection = findById(collectionId, conn);
+    if (collection.isEmpty()) {
+        throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+    }
+    if (collection.get().isDefault()) {
+        throw new ValidationException("Cannot delete default collections");
+    }
+    
+    String sql = "DELETE FROM collection WHERE collection_id = ?";
+    return findOne(
+        conn,
+        sql,
+        this::mapRowToCollection,
+        collectionId);
   }
 
   /**

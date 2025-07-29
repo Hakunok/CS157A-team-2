@@ -187,7 +187,7 @@ public class CollectionRepository extends BaseRepository {
    */
   public boolean existsDefaultCollection(int accountId, Connection conn) {
    String sql = "SELECT * FROM collection WHERE account_id = ? AND is_default = TRUE LIMIT 1" ;
-    return findOne(
+    return exists(
         conn,
         sql,
         this::mapRowToCollection,
@@ -215,7 +215,7 @@ public class CollectionRepository extends BaseRepository {
    */
   public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
     String sql = "UPDATE collection SET is_public = ? WHERE collection_id = ?" ;
-    return findOne(
+    return executeUpdate(
         conn,
         sql,
         this::mapRowToCollection,
@@ -253,7 +253,7 @@ public class CollectionRepository extends BaseRepository {
     }
     
     String sql = "DELETE FROM collection WHERE collection_id = ?";
-    return findOne(
+    return executeUpdate(
         conn,
         sql,
         this::mapRowToCollection,

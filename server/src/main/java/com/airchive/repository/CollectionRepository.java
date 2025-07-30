@@ -135,7 +135,7 @@ public class CollectionRepository extends BaseRepository {
    */
   public List<Collection> findByAccount(int accountId, Connection conn) {
     String sql = "SELECT * FROM collection WHERE account_id = ? ORDER BY created_at DESC" ;
-    return findOne(
+    return findMany(
         conn,
         sql,
         this::mapRowToCollection,
@@ -190,7 +190,6 @@ public class CollectionRepository extends BaseRepository {
     return exists(
         conn,
         sql,
-        this::mapRowToCollection,
         accountId);
   }
 
@@ -201,10 +200,20 @@ public class CollectionRepository extends BaseRepository {
    * @param isPublic The new visibility status.
    * @throws EntityNotFoundException if no collection with the given ID is found.
    */
-  public void updateVisibility(int collectionId, boolean isPublic) {
-    return withConnection(conn -> updateVisibility(collectionId, isPublic, conn));
-  }
-
+public void updateVisibility(int collectionId, boolean isPublic) {
+  withConnection(conn -> {
+    int rows = executeUpdate(
+      conn,
+      "UPDATE collection SET is_public = ? WHERE collection_id = ?",
+      isPublic,
+      collectionId
+    );
+    if (rows == 0) {
+      throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+    }
+    return null;
+  });
+}
   /**
    * Updates the visibility of a collection using a provided connection.
    *
@@ -213,15 +222,17 @@ public class CollectionRepository extends BaseRepository {
    * @param conn The active database connection.
    * @throws EntityNotFoundException if no collection with the given ID is found.
    */
-  public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
-    String sql = "UPDATE collection SET is_public = ? WHERE collection_id = ?" ;
-    return executeUpdate(
-        conn,
-        sql,
-        this::mapRowToCollection,
-        collectionId,
-        isPublic);
+public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
+  int rows = executeUpdate(
+    conn,
+    "UPDATE collection SET is_public = ? WHERE collection_id = ?",
+    isPublic,
+    collectionId
+  );
+  if (rows == 0) {
+    throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
   }
+}
 
   /**
    * Deletes a collection from the database.
@@ -230,9 +241,12 @@ public class CollectionRepository extends BaseRepository {
    * @throws ValidationException if the collection is a default collection.
    * @throws EntityNotFoundException if the collection does not exist.
    */
-  public void delete(int collectionId) {
-     return withConnection(conn -> delete(collectionId, conn));
-  }
+public void delete(int collectionId) {
+  withConnection(conn -> {
+    delete(collectionId, conn);
+    return null;
+  });
+}
 
   /**
    * Deletes a collection using a provided connection.
@@ -242,23 +256,24 @@ public class CollectionRepository extends BaseRepository {
    * @throws ValidationException if the collection is a default collection.
    * @throws EntityNotFoundException if the collection does not exist.
    */
-  public void delete(int collectionId, Connection conn) {
-    // Check if the collection is default
-    Optional<Collection> collection = findById(collectionId, conn);
-    if (collection.isEmpty()) {
-        throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
-    }
-    if (collection.get().isDefault()) {
-        throw new ValidationException("Cannot delete default collections");
-    }
-    
-    String sql = "DELETE FROM collection WHERE collection_id = ?";
-    return executeUpdate(
-        conn,
-        sql,
-        this::mapRowToCollection,
-        collectionId);
+public void delete(int collectionId, Connection conn) {
+  Optional<Collection> col = findById(collectionId, conn);
+  if (col.isEmpty()) {
+    throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
   }
+  if (col.get().isDefault()) {
+    throw new ValidationException("Cannot delete the default collection.");
+  }
+
+  int rows = executeUpdate(
+    conn,
+    "DELETE FROM collection WHERE collection_id = ?",
+    collectionId
+  );
+  if (rows == 0) {
+    throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+  }
+}
 
   /**
    * Maps a row from the 'collection' table in a {@link ResultSet} to a {@link Collection} object.

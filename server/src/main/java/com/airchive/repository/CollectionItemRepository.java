@@ -1,122 +1,136 @@
 package com.airchive.repository;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class CollectionItemRepository extends BaseRepository {
 
   /**
-   * Adds a publication to a collection. If the publication is already in the
-   * collection, the operation is ignored due to the "INSERT IGNORE" SQL command.
-   * This method manages its own database connection.
-   *
-   * @param collectionId The ID of the collection.
-   * @param pubId The ID of the publication to add.
+   * Adds a publication to a collection. If already present, INSERT IGNORE ile atlanır.
    */
   public void add(int collectionId, int pubId) {
-
+    withConnection(conn -> {
+      add(collectionId, pubId, conn);
+      return null;
+    });
   }
 
   /**
-   * Adds a publication to a collection using a provided database connection.
-   * This allows the operation to be part of a larger transaction.
-   *
-   * @param collectionId The ID of the collection.
-   * @param pubId The ID of the publication to add.
-   * @param conn The active database connection.
+   * Transaction-safe version of add()
    */
-  public void add(int collectionId, int pubId, Connection conn) {
-
+  public void add(int collectionId, int pubId, Connection conn) throws SQLException {
+    String sql = "INSERT IGNORE INTO collection_item (collection_id, pub_id) VALUES (?, ?)";
+    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, collectionId);
+      stmt.setInt(2, pubId);
+      stmt.executeUpdate();
+    }
   }
 
   /**
    * Removes a publication from a collection.
-   * This method manages its own database connection.
-   *
-   * @param collectionId The ID of the collection.
-   * @param pubId The ID of the publication to remove.
    */
   public void remove(int collectionId, int pubId) {
-
+    withConnection(conn -> {
+      remove(collectionId, pubId, conn);
+      return null;
+    });
   }
 
   /**
-   * Removes a publication from a collection using a provided database connection.
-   * This allows the operation to be part of a larger transaction.
-   *
-   * @param collectionId The ID of the collection.
-   * @param pubId The ID of the publication to remove.
-   * @param conn The active database connection.
+   * Transaction-safe version of remove()
    */
-  public void remove(int collectionId, int pubId, Connection conn) {
-
+  public void remove(int collectionId, int pubId, Connection conn) throws SQLException {
+    String sql = "DELETE FROM collection_item WHERE collection_id = ? AND pub_id = ?";
+    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, collectionId);
+      stmt.setInt(2, pubId);
+      stmt.executeUpdate();
+    }
   }
 
   /**
    * Checks if a specific publication exists within a specific collection.
-   *
-   * @param collectionId The ID of the collection.
-   * @param pubId The ID of the publication.
-   * @return {@code true} if the publication is in the collection, {@code false} otherwise.
    */
   public boolean exists(int collectionId, int pubId) {
-    return false;
+    return withConnection(conn -> exists(collectionId, pubId, conn));
   }
 
   /**
-   * Checks if a publication exists within a collection using a provided connection.
-   *
-   * @param collectionId The ID of the collection.
-   * @param pubId The ID of the publication.
-   * @param conn The active database connection.
-   * @return {@code true} if the publication is in the collection, {@code false} otherwise.
+   * Transaction-safe version of exists()
    */
-  public boolean exists(int collectionId, int pubId, Connection conn) {
-    return false;
+  public boolean exists(int collectionId, int pubId, Connection conn) throws SQLException {
+    String sql = "SELECT 1 FROM collection_item WHERE collection_id = ? AND pub_id = ? LIMIT 1";
+    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, collectionId);
+      stmt.setInt(2, pubId);
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next();
+      }
+    }
   }
 
   /**
    * Checks if a publication has been saved to a user's default "Saved" collection.
-   * This is a specific business logic check to determine the "saved" state of a publication for a user.
-   *
-   * @param accountId The ID of the user's account.
-   * @param pubId The ID of the publication to check.
-   * @return {@code true} if the publication is in the user's default collection, {@code false} otherwise.
    */
   public boolean isPublicationSaved(int accountId, int pubId) {
-    return false;
+    return withConnection(conn -> isPublicationSaved(accountId, pubId, conn));
   }
 
   /**
-   * Checks if a publication is in a user's default collection using a provided connection.
-   *
-   * @param accountId The ID of the user's account.
-   * @param pubId The ID of the publication to check.
-   * @param conn The active database connection.
-   * @return {@code true} if the publication is in the user's default collection, {@code false} otherwise.
+   * Transaction-safe version of isPublicationSaved()
    */
-  public boolean isPublicationSaved(int accountId, int pubId, Connection conn) {
-    return false;
+  public boolean isPublicationSaved(int accountId, int pubId, Connection conn) throws SQLException {
+    String sql = "SELECT 1 FROM collection_item ci " +
+                 "JOIN collection c ON ci.collection_id = c.collection_id " +
+                 "WHERE c.account_id = ? AND c.is_default = TRUE AND ci.pub_id = ? LIMIT 1";
+    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, accountId);
+      stmt.setInt(2, pubId);
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next();
+      }
+    }
   }
 
   /**
-   * Retrieves a list of all publication IDs contained within a specific collection.
-   *
-   * @param collectionId The ID of the collection.
-   * @return A {@link List} of publication IDs, ordered by the date they were added descending.
+   * Retrieves all publication IDs in a collection, newest first.
    */
   public List<Integer> findPublicationIdsInCollection(int collectionId) {
-    return null;
+    return withConnection(conn -> findPublicationIdsInCollection(collectionId, conn));
   }
 
   /**
-   * Retrieves a list of all publication IDs in a collection using a provided connection.
-   *
-   * @param collectionId The ID of the collection.
-   * @param conn The active database connection.
-   * @return A {@link List} of publication IDs, ordered by the date they were added descending.
+   * Transaction-safe version of findPublicationIdsInCollection()
    */
-  public List<Integer> findPublicationIdsInCollection(int collectionId, Connection conn) {
-    return null;
+  public List<Integer> findPublicationIdsInCollection(int collectionId, Connection conn) throws SQLException {
+    String sql = "SELECT pub_id FROM collection_item WHERE collection_id = ? ORDER BY added_at DESC";
+    List<Integer> publicationIds = new ArrayList<>();
+    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, collectionId);
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          publicationIds.add(rs.getInt("pub_id"));
+        }
+      }
+    }
+    return publicationIds;
+  }
+ 
+  public static void main(String[] args) {
+    CollectionItemRepository repo = new CollectionItemRepository();
+    try {
+      repo.add(1, 1);
+      System.out.println("✅ Added? " + repo.exists(1, 1));
+      System.out.println("📜 Items: " + repo.findPublicationIdsInCollection(1));
+      repo.remove(1, 1);
+      System.out.println("❌ Removed? " + !repo.exists(1, 1));
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 }

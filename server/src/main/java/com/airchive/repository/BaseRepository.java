@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * An abstract base class for repository implementations that provides utility methods
- * to simplify database interactions using JDBC. This class encapsulates common
- * boilerplate code for connection management, statement preparation and execution, result
- * set mapping, and exception handling.
+ * Abstract base class for all repository implementations in this application.
+ *
+ * <p>This class encapsulates common JDBC operations and exception handling patterns, reducing
+ * boilerplate and maintaining consistency across repositories.</p>
  */
 public abstract class BaseRepository {
 
@@ -68,7 +68,7 @@ public abstract class BaseRepository {
    * @param sql the SQL query string to execute
    * @param mapper a {@code RowMapper} to map the result set to an object of type T
    * @param params the parameters to be set on the {@link PreparedStatement}
-   * @return a {@link List} of mapped objects if record(s) are found; otherwise an
+   * @return a list of mapped objects; empty if no rows are returned
    * empty {@link List}
    * @throws DataAccessException if a database access error occurs while executing the query
    */
@@ -95,8 +95,7 @@ public abstract class BaseRepository {
    * @param sql the SQL query string to execute
    * @param columnType the class type of the column to retrieve
    * @param params the parameters to be set on the {@link PreparedStatement}
-   * @return a {@link List} of values from the first column of the result set; an empty
-   * {@link List} otherwise
+   * @return a list of mapped objects; empty if no rows are returned
    * @throws DataAccessException if a database access error occurs while executing the query
    */
   protected <T> List<T> findColumnMany(Connection conn, String sql, Class<T> columnType, Object... params) {
@@ -118,9 +117,9 @@ public abstract class BaseRepository {
    * Checks whether a record exists in the database based on the provided query and parameters.
    *
    * @param conn the database connection to use
-   * @param sql the SQL query used to check for the existence of records
+   * @param sql the SQL SELECT EXISTS(...) query to run
    * @param params the parameters to be set on the {@link PreparedStatement}
-   * @return {@code true} if a record exists that matches the query; {@code false} otherwise
+   * @return true if a matching record exists; false otherwise
    * @throws DataAccessException if a database access error occurs while executing the query
    */
   protected boolean exists(Connection conn, String sql, Object... params) {
@@ -178,7 +177,7 @@ public abstract class BaseRepository {
   }
 
   /**
-   * A private helper method to safely set parameters on a {@link PreparedStatement}.
+   * Sets positional parameters on a {@link PreparedStatement}.
    *
    * @param stmt the PreparedStatement to set
    * @param params the variable length parameters to set

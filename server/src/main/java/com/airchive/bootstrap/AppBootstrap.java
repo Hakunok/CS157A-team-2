@@ -1,32 +1,33 @@
 package com.airchive.bootstrap;
 
-import com.airchive.repository.AccountRepository;
-import com.airchive.repository.AuthorRequestRepository;
-import com.airchive.repository.CollectionItemRepository;
-import com.airchive.repository.CollectionRepository;
-import com.airchive.repository.InteractionRepository;
-import com.airchive.repository.PersonRepository;
-import com.airchive.repository.PublicationAuthorRepository;
-import com.airchive.repository.PublicationRepository;
-import com.airchive.repository.PublicationTopicRepository;
-import com.airchive.repository.RecommendationRepository;
-import com.airchive.repository.TopicRepository;
-import com.airchive.service.PublicationService;
-import com.airchive.service.TopicService;
-import com.airchive.service.AuthorRequestService;
-import com.airchive.service.PersonAccountService;
+import com.airchive.db.DbConnectionManager;
+import com.airchive.repository.*;
+import com.airchive.service.*;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
+/**
+ * The {@code AppBootstrap} class is an "application-wide bootstrap class" that initializes all
+ * repositories and services and registers them with the servlet context for dependency injection
+ * across the REST resources.
+ * This class implements {@link ServletContextListener}, which is automatically invoked during
+ * application startup/shutdown by the servlet container (Tomcat in our case).
+ */
 public class AppBootstrap implements ServletContextListener {
 
+  /**
+   * Called automatically when the application context is initialized.
+   * Sets up and registers all services and their dependencies so that they can be used by the
+   * REST resources.
+   * @param sce the context event provided by the servlet container
+   */
   @Override
   public void contextInitialized(ServletContextEvent sce) {
 
     ServletContext ctx = sce.getServletContext();
 
-    // Create repositories
+    // Initialize repository layer
     var personRepository = new PersonRepository();
     var accountRepository = new AccountRepository();
     var authorRequestRepository = new AuthorRequestRepository();
@@ -39,23 +40,53 @@ public class AppBootstrap implements ServletContextListener {
     var interactionRepository = new InteractionRepository();
     var recommendationRepository = new RecommendationRepository();
 
-    // Create services
-    var personAccountService = new PersonAccountService(personRepository,
-        accountRepository, collectionRepository);
-    var authorRequestService = new AuthorRequestService(authorRequestRepository,
-        accountRepository);
-    var topicService = new TopicService(topicRepository);
-    //var publicationService = new PublicationService(publicationRepository,);
+    // Initialize service layer
+    var personAccountService = new PersonAccountService(
+        personRepository,
+        accountRepository,
+        collectionRepository,
+        recommendationRepository
+    );
 
+    var authorRequestService = new AuthorRequestService(
+        authorRequestRepository,
+        accountRepository
+    );
 
-    // Set up servlet context
+    var topicService = new TopicService(
+        topicRepository
+    );
+
+    var publicationService = new PublicationService(
+        publicationRepository,
+        publicationTopicRepository,
+        publicationAuthorRepository,
+        interactionRepository,
+        recommendationRepository,
+        personRepository,
+        topicRepository
+    );
+
+    var collectionService = new CollectionService(
+        collectionRepository,
+        collectionItemRepository
+    );
+
+    // Register services in servlet context
     ctx.setAttribute("personAccountService", personAccountService);
     ctx.setAttribute("authorRequestService", authorRequestService);
     ctx.setAttribute("topicService", topicService);
-    //ctx.setAttribute("publicationService", publicationService);
-
+    ctx.setAttribute("publicationService", publicationService);
+    ctx.setAttribute("collectionService", collectionService);
   }
 
+  /**
+   * Called automatically when the application context is being destroyed.
+   * Closes the HikariCP connection pool.
+   * @param sce the context event provided by the servlet container
+   */
   @Override
-  public void contextDestroyed(ServletContextEvent sce) {}
+  public void contextDestroyed(ServletContextEvent sce) {
+    DbConnectionManager.closePool();
+  }
 }

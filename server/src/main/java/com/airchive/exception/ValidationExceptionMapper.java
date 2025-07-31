@@ -6,6 +6,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
+/**
+ * Maps {@link ValidationException} to a {@code 400 Bad Request} HTTP response.
+ */
 @Provider
 public class ValidationExceptionMapper implements ExceptionMapper<ValidationException> {
   @Override

@@ -1,6 +1,7 @@
 package com.airchive.repository;
 
 import com.airchive.entity.Publication;
+import com.airchive.entity.Interaction;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -14,15 +15,6 @@ import java.util.Set;
  * It uses a combination of content-based, collaborative, and popularity-based filtering.
  */
 public class RecommendationRepository extends BaseRepository {
-
-  /** Weight assigned to a 'view' interaction for affinity calculation. */
-  private static final double VIEW_WEIGHT = 0.5;
-
-  /** Weight assigned to a 'like' interaction. Likes are a strong signal of interest. */
-  private static final double LIKE_WEIGHT = 3.0;
-
-  /** Weight assigned to a 'save' (collection add) interaction. */
-  private static final double SAVE_WEIGHT = 2.5;
 
   /** The half-life for interaction scores, in hours. */
   private static final int DECAY_HOURS = 72;
@@ -101,9 +93,9 @@ public class RecommendationRepository extends BaseRepository {
     """;
 
     executeUpdate(conn, affinitySql,
-        VIEW_WEIGHT, DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        LIKE_WEIGHT, DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        SAVE_WEIGHT, DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.VIEW.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.LIKE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.SAVE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
         accountId, MAX_SCORE, MAX_AFFINITY_PER_USER);
 
     String authorSql = """
@@ -126,9 +118,9 @@ public class RecommendationRepository extends BaseRepository {
     """;
 
     executeUpdate(conn, authorSql,
-        VIEW_WEIGHT, DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        LIKE_WEIGHT, DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        SAVE_WEIGHT, DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.VIEW.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.LIKE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.SAVE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
         accountId, MAX_SCORE, MAX_AFFINITY_PER_USER);
   }
 
@@ -224,10 +216,16 @@ public class RecommendationRepository extends BaseRepository {
 
       if (kind != null) {
         return findColumnMany(conn, sql.toString(), Integer.class,
-            VIEW_WEIGHT, LIKE_WEIGHT, SAVE_WEIGHT, accountId, accountId, kind.name(), limit, offset);
+            Interaction.VIEW.getAffinityWeight(),
+            Interaction.LIKE.getAffinityWeight(),
+            Interaction.SAVE.getAffinityWeight(),
+            accountId, accountId, kind.name(), limit, offset);
       } else {
         return findColumnMany(conn, sql.toString(), Integer.class,
-            VIEW_WEIGHT, LIKE_WEIGHT, SAVE_WEIGHT, accountId, accountId, limit, offset);
+            Interaction.VIEW.getAffinityWeight(),
+            Interaction.LIKE.getAffinityWeight(),
+            Interaction.SAVE.getAffinityWeight(),
+            accountId, accountId, limit, offset);
       }
     });
   }
@@ -255,10 +253,16 @@ public class RecommendationRepository extends BaseRepository {
 
       if (kind != null) {
         return findColumnMany(conn, sql.toString(), Integer.class,
-            VIEW_WEIGHT, LIKE_WEIGHT, SAVE_WEIGHT, kind.name(), limit, offset);
+            Interaction.VIEW.getAffinityWeight(),
+            Interaction.LIKE.getAffinityWeight(),
+            Interaction.SAVE.getAffinityWeight(),
+            kind.name(), limit, offset);
       } else {
         return findColumnMany(conn, sql.toString(), Integer.class,
-            VIEW_WEIGHT, LIKE_WEIGHT, SAVE_WEIGHT, limit, offset);
+            Interaction.VIEW.getAffinityWeight(),
+            Interaction.LIKE.getAffinityWeight(),
+            Interaction.SAVE.getAffinityWeight(),
+            limit, offset);
       }
     });
   }
@@ -279,6 +283,16 @@ public class RecommendationRepository extends BaseRepository {
     return getSmartRecommendations(accountId, limit, offset, null);
   }
 
+  /**
+   * Generates a list of recommended publications.
+   * First attempts to fill the page with recommendations generated from the account's affinities.
+   * The remaining spaces are filled with the platform's popular recommendations.
+   * @param accountId
+   * @param limit
+   * @param offset
+   * @param kind
+   * @return
+   */
   public List<Integer> getSmartRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
     return withConnection(conn -> {
       boolean hasAffinity = hasAnyAffinity(accountId, conn);

@@ -19,16 +19,22 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 
+/**
+ * REST API for authentication, session handling, and account registration.
+ *
+ * <p>This resource handles login, logout, account creation, session validaiton, field validation
+ * (username/email), and admin promotion.
+ *
+ * <p>All responses are returned in JSON and use {@link com.airchive.dto} and
+ * {@link com.airchive.entity} records.
+ */
 @Path("/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
-  @Context
-  private ServletContext ctx;
-
-  @Context
-  private HttpServletRequest request;
+  @Context private ServletContext ctx;
+  @Context private HttpServletRequest request;
 
   private PersonAccountService accountService;
 
@@ -37,6 +43,12 @@ public class AuthResource {
     this.accountService = (PersonAccountService) ctx.getAttribute("personAccountService");
   }
 
+  /**
+   * Registers a new user account and logs the user in by starting a new session.
+   *
+   * @param req the registration details submitted by the client
+   * @return the created user profile as {@link UserResponse}
+   */
   @POST
   @Path("/register")
   public Response register (AccountRegisterRequest req) {
@@ -61,6 +73,12 @@ public class AuthResource {
     return Response.ok(UserResponse.from(newAccount, newPerson)).build();
   }
 
+  /**
+   * Logs in a user using username or email and sets the session user.
+   *
+   * @param req the login credentials
+   * @return a {@link Response} containing the authenticated user profile as {@link UserResponse}
+   */
   @POST
   @Path("/login")
   public Response login (LoginRequest req) {
@@ -73,6 +91,11 @@ public class AuthResource {
     return Response.ok(UserResponse.from(account, person)).build();
   }
 
+  /**
+   * Logs out the current user by invalidating their session.
+   *
+   * @return a {@link Response} containing a confirmation message
+   */
   @POST
   @Path("/logout")
   public Response logout () {
@@ -83,6 +106,12 @@ public class AuthResource {
     return Response.ok(Map.of("message", "Logged out.")).build();
   }
 
+  /**
+   * Returns the currently logged-in user's profile, refreshing session info.
+   *
+   * @return a {@link Response} containing the current session user's full profile as
+   * {@link UserResponse}
+   */
   @GET
   @Path("/me")
   public Response getMe () {
@@ -100,6 +129,15 @@ public class AuthResource {
     return Response.ok(UserResponse.from(account, person)).build();
   }
 
+  /**
+   * Validates the given registration request without creating an account.
+   *
+   * <p>This checks for field format (email, password, etc.) and uniqueness of username and email.
+   *
+   * @param req the registration input to validate
+   * @return a {@link Response} containing a map containing validation results and field errors if
+   * any
+   */
   @POST
   @Path("/validate")
   public Response validate(AccountRegisterRequest req) {
@@ -138,6 +176,12 @@ public class AuthResource {
     )).build();
   }
 
+  /**
+   * Promotes another account to admin (admin-only access).
+   *
+   * @param accountId the id of the account to promote
+   * @return a {@link Response} containing a confirmation message
+   */
   @POST
   @Path("/promote/{accountId}")
   public Response promote(@PathParam("accountId") int accountId) {

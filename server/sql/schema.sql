@@ -70,12 +70,10 @@ CREATE TABLE publication (
     url VARCHAR(2083),
     kind ENUM('PAPER', 'BLOG', 'ARTICLE') NOT NULL,
     submitter_id INT,
-    corresponding_author_id INT,
-    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     published_at DATETIME,
     status ENUM('PUBLISHED', 'DRAFT') NOT NULL DEFAULT 'DRAFT',
     FOREIGN KEY (submitter_id) REFERENCES account(account_id) ON DELETE SET NULL,
-    FOREIGN KEY (corresponding_author_id) REFERENCES person(person_id) ON DELETE SET NULL
 );
 
 -- =============================================================================
@@ -114,7 +112,7 @@ CREATE TABLE publication_topic (
 CREATE TABLE collection (
     collection_id INT PRIMARY KEY AUTO_INCREMENT,
     account_id INT NOT NULL,
-    title VARCHAR(100) NOT NULL,
+    title VARCHAR(150) NOT NULL,
     description TEXT,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     is_public BOOLEAN NOT NULL DEFAULT FALSE,
@@ -210,5 +208,5 @@ CREATE INDEX idx_like_pub ON publication_like (pub_id);
 
 CREATE INDEX idx_collection_pub ON collection_item (pub_id);
 
-CREATE INDEX idx_author_person ON publication_author (person_id);
-CREATE INDEX idx_topic_topic ON publication_topic (topic_id);
+CREATE INDEX idx_pub_author ON publication_author (person_id);
+CREATE INDEX idx_pub_topic ON publication_topic (topic_id);

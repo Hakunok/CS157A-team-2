@@ -10,6 +10,7 @@ import com.airchive.exception.ValidationException;
 import com.airchive.repository.AccountRepository;
 import com.airchive.repository.CollectionRepository;
 import com.airchive.repository.PersonRepository;
+import com.airchive.repository.RecommendationRepository;
 import com.airchive.util.PasswordUtils;
 import com.airchive.util.SecurityUtils;
 import com.airchive.util.ValidationUtils;
@@ -20,14 +21,17 @@ public class PersonAccountService {
   private final PersonRepository personRepository;
   private final AccountRepository accountRepository;
   private final CollectionRepository collectionRepository;
+  private final RecommendationRepository recommendationRepository;
 
   public PersonAccountService(
       PersonRepository personRepository,
       AccountRepository accountRepository,
-      CollectionRepository collectionRepository) {
+      CollectionRepository collectionRepository,
+      RecommendationRepository recommendationRepository) {
     this.personRepository = personRepository;
     this.accountRepository = accountRepository;
     this.collectionRepository = collectionRepository;
+    this.recommendationRepository = recommendationRepository;
   }
 
   public Account createAccount(Person person, Account account) {

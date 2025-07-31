@@ -7,6 +7,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
+/**
+ * Maps {@link ForbiddenException} to a {@code 403 Forbidden} HTTP response.
+ */
 @Provider
 public class ForbiddenExceptionMapper implements ExceptionMapper<ForbiddenException> {
   @Override

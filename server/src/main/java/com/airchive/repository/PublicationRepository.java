@@ -49,15 +49,14 @@ public class PublicationRepository extends BaseRepository {
 
     int newId = executeInsertWithGeneratedKey(
         conn,
-        "INSERT INTO publication (title, content, doi, url, kind, submitter_id, corresponding_author_id, submitted_at, published_at, status) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO publication (title, content, doi, url, kind, submitter_id, submitted_at, published_at, status) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         publication.title(),
         publication.content(),
         publication.doi(),
         publication.url(),
         publication.kind().name(),
         publication.submitterId(),
-        publication.correspondingAuthorId(),
         publication.submittedAt(),
         publication.publishedAt(),
         publication.status().name()
@@ -75,14 +74,13 @@ public class PublicationRepository extends BaseRepository {
    * @param doi The new Digital Object Identifier.
    * @param url The new URL.
    * @param kind The new publication kind.
-   * @param correspondingAuthorId The new corresponding author's person ID.
    * @throws ValidationException if the new DOI is already in use by another publication.
    * @throws EntityNotFoundException if the publication to update is not found.
    */
   public void update(int pubId, String title, String content, String doi, String url,
-      Publication.Kind kind, Integer correspondingAuthorId) {
+      Publication.Kind kind) {
     withConnection(conn -> {
-      update(pubId, title, content, doi, url, kind, correspondingAuthorId, conn);
+      update(pubId, title, content, doi, url, kind, conn);
       return null;
     });
   }
@@ -96,13 +94,12 @@ public class PublicationRepository extends BaseRepository {
    * @param doi The new DOI.
    * @param url The new URL.
    * @param kind The new kind.
-   * @param correspondingAuthorId The new corresponding author's ID.
    * @param conn The active database connection.
    * @throws ValidationException if the new DOI is already in use by another publication.
    * @throws EntityNotFoundException if the publication to update is not found.
    */
   public void update(int pubId, String title, String content, String doi, String url,
-      Publication.Kind kind, Integer correspondingAuthorId, Connection conn) {
+      Publication.Kind kind, Connection conn) {
     Optional<Publication> existing = findByDoi(doi, conn);
     if (existing.isPresent() && existing.get().pubId() != pubId) {
       throw new ValidationException("A different publication with this DOI already exists.");
@@ -110,8 +107,9 @@ public class PublicationRepository extends BaseRepository {
 
     int rows = executeUpdate(
         conn,
-        "UPDATE publication SET title = ?, content = ?, doi = ?, url = ?, kind = ?, corresponding_author_id = ? WHERE pub_id = ?",
-        title, content, doi, url, kind.name(), correspondingAuthorId, pubId
+        "UPDATE publication SET title = ?, content = ?, doi = ?, url = ?, kind = ? WHERE pub_id ="
+            + " ?",
+        title, content, doi, url, kind.name(), pubId
     );
     if (rows == 0) {
       throw new EntityNotFoundException("Publication not found for update.");
@@ -148,6 +146,17 @@ public class PublicationRepository extends BaseRepository {
     );
     if (rows == 0) {
       throw new EntityNotFoundException("Publication not found for status update.");
+    }
+  }
+
+  public void updateStatusAndPublishedAt(int pubId, Publication.Status status, LocalDateTime publishedAt, Connection conn) {
+    int rows = executeUpdate(
+        conn,
+        "UPDATE publication SET status = ?, published_at = ? WHERE pub_id = ?",
+        status.name(), publishedAt, pubId
+    );
+    if (rows == 0) {
+      throw new EntityNotFoundException("Publication not found for publish.");
     }
   }
 
@@ -322,7 +331,7 @@ public class PublicationRepository extends BaseRepository {
    * @return A {@link List} of matching publications.
    */
   public List<Publication> searchByTitle(String query, int limit) {
-    return withConnection(conn -> searchByTitle(query, conn));
+    return withConnection(conn -> searchByTitle(query, limit, conn));
   }
 
   /**
@@ -332,7 +341,7 @@ public class PublicationRepository extends BaseRepository {
    * @param conn The active database connection.
    * @return A {@link List} of matching publications.
    */
-  public List<Publication> searchByTitle(String query, Connection conn) {
+  public List<Publication> searchByTitle(String query, int limit, Connection conn) {
     String booleanQuery = Arrays.stream(query.toLowerCase().split("\\s+"))
         .filter(t -> t.length() > 2)
         .map(t -> {
@@ -348,10 +357,10 @@ public class PublicationRepository extends BaseRepository {
     WHERE MATCH(title) AGAINST (? IN BOOLEAN MODE)
       AND status = 'PUBLISHED'
     ORDER BY relevance DESC, published_at DESC
-    LIMIT 10;
+    LIMIT ?;
     """;
 
-    return findMany(conn, sql, this::mapRowToPublication, booleanQuery, booleanQuery);
+    return findMany(conn, sql, this::mapRowToPublication, booleanQuery, booleanQuery, limit);
   }
 
   /**
@@ -370,7 +379,6 @@ public class PublicationRepository extends BaseRepository {
         rs.getString("url"),
         Publication.Kind.valueOf(rs.getString("kind")),
         (Integer) rs.getObject("submitter_id"),
-        (Integer) rs.getObject("corresponding_author_id"),
         rs.getObject("submitted_at", LocalDateTime.class),
         rs.getObject("published_at", LocalDateTime.class),
         Publication.Status.valueOf(rs.getString("status"))

@@ -133,6 +133,19 @@ public class PublicationAuthorRepository extends BaseRepository {
         pubId);
   }
 
+  public List<Integer> findPersonIdsByPublication(int pubId) {
+    return withConnection(conn -> findPersonIdsByPublication(pubId, conn));
+  }
+
+  public List<Integer> findPersonIdsByPublication(int pubId, Connection conn) {
+    return findColumnMany(
+        conn,
+        "SELECT person_id FROM publication_author WHERE pub_id = ? ORDER BY author_order ASC",
+        Integer.class,
+        pubId
+    );
+  }
+
   /**
    * Retrieves all publication IDs for which a given person is an author.
    *
@@ -226,7 +239,6 @@ public class PublicationAuthorRepository extends BaseRepository {
         rs.getString("url"),
         Publication.Kind.valueOf(rs.getString("kind")),
         (Integer) rs.getObject("submitter_id"),
-        (Integer) rs.getObject("corresponding_author_id"),
         rs.getObject("submitted_at", LocalDateTime.class),
         rs.getObject("published_at", LocalDateTime.class),
         Publication.Status.valueOf(rs.getString("status"))

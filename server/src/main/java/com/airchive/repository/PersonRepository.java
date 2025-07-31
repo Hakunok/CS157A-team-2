@@ -6,7 +6,9 @@ import com.airchive.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Manages data persistence for {@link Person} entities.
@@ -74,6 +76,20 @@ public class PersonRepository extends BaseRepository {
   public Optional<Person> findById(int personId, Connection conn) {
     return findOne(conn, "SELECT * FROM person WHERE person_id = ?", this::mapRowToPerson, personId);
   }
+
+  public List<Person> findByIds(List<Integer> personIds) {
+    return withConnection(conn -> findByIds(personIds, conn));
+  }
+
+  public List<Person> findByIds(List<Integer> personIds, Connection conn) {
+    if (personIds == null || personIds.isEmpty()) return List.of();
+
+    String placeholders = personIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = "SELECT * FROM person WHERE person_id IN (" + placeholders + ")";
+
+    return findMany(conn, sql, this::mapRowToPerson, personIds.toArray());
+  }
+
 
   /**
    * Finds a person by their unique identity email.

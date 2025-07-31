@@ -54,6 +54,7 @@ i'll write this soon
 - [JAX-RS Overview (Oracle)](https://www.oracle.com/technical-resources/articles/java/jax-rs.html)
 - [Jersey 2.47 API Documentation](https://eclipse-ee4j.github.io/jersey.github.io/apidocs/latest/jersey/index.html)
 - [HTTP Status Codes for REST](https://restfulapi.net/http-status-codes/)
+- [JAX-RS @QueryParam example](https://mkyong.com/webservices/jax-rs/jax-rs-queryparam-example/)
 
 ### Recommendation Systems
 - [Types of Recommendation Systems](https://marutitech.medium.com/what-are-the-types-of-recommendation-systems-3487cbafa7c9)

@@ -203,7 +203,7 @@ public class AccountRepository extends BaseRepository {
 
 
   /**
-   * Maps a row from the 'account' table in a {@link ResultSet} to an {@link Account} object.
+   * Maps a row from the {@code account} table in a {@link ResultSet} to an {@link Account} object.
    *
    * @param rs The ResultSet to map from.
    * @return The mapped Account object.

@@ -1,6 +1,15 @@
-# Database properties file template. These values will be used to configure the data source.
+# Database Configuration
 
-db.driver=
-db.url=
+# Fully qualified JDBC driver class
+db.driver=com.mysql.cj.jdbc.Driver
+
+# Database user credentials
 db.user=
 db.password=
+
+# Name of the database to connect to
+db.dbName=
+
+# Whether to use connection pooling
+# true = enable pooling with HikariCP; false = use raw DriverManager
+db.usePool=

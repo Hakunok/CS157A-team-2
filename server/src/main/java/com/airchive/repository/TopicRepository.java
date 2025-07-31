@@ -147,6 +147,20 @@ public class TopicRepository extends BaseRepository {
     return findOne(conn, "SELECT * FROM topic WHERE topic_id = ?", this::mapRowToTopic, topicId);
   }
 
+  public List<Topic> findByIds(List<Integer> topicIds) {
+    return withConnection(conn -> findByIds(topicIds, conn));
+  }
+
+  public List<Topic> findByIds(List<Integer> topicIds, Connection conn) {
+    if (topicIds == null || topicIds.isEmpty()) return List.of();
+
+    String placeholders = topicIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = "SELECT * FROM topic WHERE topic_id IN (" + placeholders + ")";
+
+    return findMany(conn, sql, this::mapRowToTopic, topicIds.toArray());
+  }
+
+
   /**
    * Finds a topic by its unique code.
    *

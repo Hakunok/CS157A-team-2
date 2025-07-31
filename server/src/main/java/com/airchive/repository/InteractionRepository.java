@@ -1,6 +1,6 @@
 package com.airchive.repository;
 
-import com.airchive.dto.PublicationInteractionSummary;
+import com.airchive.dto.InteractionSummary;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -194,9 +194,9 @@ public class InteractionRepository extends BaseRepository {
    *
    * @param accountId The ID of the user.
    * @param limit The maximum number of recent interactions to retrieve.
-   * @return A {@link List} of {@link PublicationInteractionSummary} objects, ordered by most recent first.
+   * @return A {@link List} of {@link InteractionSummary} objects, ordered by most recent first.
    */
-  public List<PublicationInteractionSummary> findRecentInteractionsByAccount(int accountId, int limit) {
+  public List<InteractionSummary> findRecentInteractionsByAccount(int accountId, int limit) {
     return withConnection(conn -> findRecentInteractionsByAccount(accountId, limit, conn));
   }
 
@@ -206,9 +206,9 @@ public class InteractionRepository extends BaseRepository {
    * @param accountId The ID of the user.
    * @param limit The maximum number of interactions to retrieve.
    * @param conn The active database connection.
-   * @return A {@link List} of {@link PublicationInteractionSummary} objects.
+   * @return A {@link List} of {@link InteractionSummary} objects.
    */
-  public List<PublicationInteractionSummary> findRecentInteractionsByAccount(int accountId, int limit, Connection conn) {
+  public List<InteractionSummary> findRecentInteractionsByAccount(int accountId, int limit, Connection conn) {
     String sql =
       """
       (SELECT pub_id, 'VIEW' AS interaction_type, viewed_at AS timestamp
@@ -224,16 +224,16 @@ public class InteractionRepository extends BaseRepository {
   }
 
   /**
-   * Maps a row from a combined interaction query to a {@link PublicationInteractionSummary} object.
+   * Maps a row from a combined interaction query to a {@link InteractionSummary} object.
    *
    * @param rs The ResultSet to map from.
    * @return The mapped PublicationInteractionSummary object.
    * @throws SQLException if a database access error occurs.
    */
-  private PublicationInteractionSummary mapRowToSummary(ResultSet rs) throws SQLException {
-    return new PublicationInteractionSummary(
+  private InteractionSummary mapRowToSummary(ResultSet rs) throws SQLException {
+    return new InteractionSummary(
         rs.getInt("pub_id"),
-        PublicationInteractionSummary.PublicationInteractionType.valueOf(
+        InteractionSummary.PublicationInteractionType.valueOf(
             rs.getString("interaction_type")
         ),
         rs.getObject("timestamp", LocalDateTime.class)

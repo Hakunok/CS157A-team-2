@@ -6,6 +6,9 @@ import java.util.Map;
  * This record represents the structure for returning error information in REST API responses.
  *
  * <p>This response is intended to be returned with HTTP status codes by {@link javax.ws.rs.ext.ExceptionMapper}.
+ *
+ * @param message
+ * @param fieldErrors
  */
 public record ErrorResponse(
     String message,

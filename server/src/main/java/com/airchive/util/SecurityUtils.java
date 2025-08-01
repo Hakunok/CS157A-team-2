@@ -18,8 +18,8 @@ import javax.ws.rs.NotAuthorizedException;
  * </ul>
  *
  * <p>Methods throw JAX-RS exceptions like {@link NotAuthorizedException} and
- * {@link ForbiddenException} when access control fails. These exceptions can be handled via
- * standard {@code ExceptionMapper} classes in JAX-RS.
+ * {@link ForbiddenException} when access control fails. These exceptions will be handled via
+ * the implemented {@link javax.ws.rs.ext.ExceptionMapper} classes.
  */
 public class SecurityUtils {
 

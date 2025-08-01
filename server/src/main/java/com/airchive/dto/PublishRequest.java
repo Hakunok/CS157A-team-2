@@ -10,6 +10,10 @@ import java.util.List;
  * the publication as well as an optional {@code publishedAt} timestamp.
  *
  * <p>Used by the {@code POST /publications/{id}/publish} endpoint.
+ *
+ * @param authorIds
+ * @param topicIds
+ * @param publishedAt
  */
 public record PublishRequest(
     List<Integer> authorIds,

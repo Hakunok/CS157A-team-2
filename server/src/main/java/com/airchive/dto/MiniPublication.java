@@ -19,12 +19,43 @@ import java.util.List;
  *   <li>{@code GET /publications/recommendations}</li>
  *   <li>{@code GET /publications/my}</li>
  * </ul>
+ *
+ * @param pubId
+ * @param title
+ * @param kind
+ * @param publishedAt
+ * @param viewCount
+ * @param likeCount
+ * @param authors
+ * @param topics
  */
 public record MiniPublication(
     int pubId,
     String title,
     Publication.Kind kind,
     LocalDateTime publishedAt,
+    int viewCount,
+    int likeCount,
     List<MiniPerson> authors,
     List<Topic> topics
-) {}
+) {
+
+  public static MiniPublication from(
+      Publication pub,
+      int viewCount,
+      int likeCount,
+      MiniPerson firstAuthor,
+      List<Topic> topics
+  ) {
+    return new MiniPublication(
+        pub.pubId(),
+        pub.title(),
+        pub.kind(),
+        pub.publishedAt(),
+        viewCount,
+        likeCount,
+        (firstAuthor == null) ? List.of() : List.of(firstAuthor),
+        topics != null ? topics : List.of()
+    );
+  }
+}

@@ -36,12 +36,11 @@ This project is divided into two separate applications (at least for development
 
 i'll write this soon
 
-
-
 ## References & Resources
 
 ### Java & Design Patterns
 - [Repository: A Domain-Driven Design Pattern](https://www.umlboard.com/design-patterns/repository.html)
+
 
 ### JDBC & MySQL
 - Dr. Ching-Seh Wu’s Lecture Slides
@@ -55,6 +54,10 @@ i'll write this soon
 - [Jersey 2.47 API Documentation](https://eclipse-ee4j.github.io/jersey.github.io/apidocs/latest/jersey/index.html)
 - [HTTP Status Codes for REST](https://restfulapi.net/http-status-codes/)
 - [JAX-RS @QueryParam example](https://mkyong.com/webservices/jax-rs/jax-rs-queryparam-example/)
+
+### React
+- [React Documentation](https://react.dev/learn)
+- [Shadcn Documentation](https://ui.shadcn.com/docs)
 
 ### Recommendation Systems
 - [Types of Recommendation Systems](https://marutitech.medium.com/what-are-the-types-of-recommendation-systems-3487cbafa7c9)

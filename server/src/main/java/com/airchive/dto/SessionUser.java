@@ -10,6 +10,11 @@ import com.airchive.entity.Account;
  *
  * <p>This record is typically set in the session after login or account creation and retrieved
  * via {@link com.airchive.util.SecurityUtils}.
+ *
+ * @param accountId
+ * @param username
+ * @param isAdmin
+ * @param role
  */
 public record SessionUser(
     int accountId,

@@ -9,6 +9,9 @@ import com.airchive.entity.Person;
  * primarily for frontend UI.
  *
  * <p>Used within {@link MiniPublication} to avoid sending full {@link Person} records.
+ *
+ * @param personId
+ * @param fullName
  */
 public record MiniPerson(
     int personId,

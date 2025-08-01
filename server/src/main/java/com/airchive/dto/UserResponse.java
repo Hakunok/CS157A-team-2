@@ -10,6 +10,14 @@ import com.airchive.entity.Person;
  * complete user view, including login credentials, role, and identity fields.
  *
  * <p>This record should be sent to the frontend for authentication and user profiles.
+ *
+ * @param accountId
+ * @param username
+ * @param email
+ * @param isAdmin
+ * @param role
+ * @param firstName
+ * @param lastName
  */
 public record UserResponse(
     int accountId,

@@ -13,6 +13,12 @@ import com.airchive.entity.Publication;
  *   <li>{@code POST /publications}</li>
  *   <li>{@code PUT /publications/{id}}</li>
  * </ul>
+ *
+ * @param title
+ * @param content
+ * @param doi
+ * @param url
+ * @param kind
  */
 public record Draft(
     String title,

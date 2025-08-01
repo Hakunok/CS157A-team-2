@@ -17,6 +17,21 @@ import java.util.List;
  * metadata, publication status, and all associated authors and topics.
  *
  * <p>Used by endpoints such as {@code GET /publications/{id}}.
+ *
+ * @param pubId
+ * @param title
+ * @param content
+ * @param doi
+ * @param url
+ * @param kind
+ * @param submitterId
+ * @param submittedAt
+ * @param publishedAt
+ * @param status
+ * @param viewCount
+ * @param likeCount
+ * @param authors
+ * @param topics
  */
 public record PublicationResponse(
     int pubId,
@@ -29,6 +44,8 @@ public record PublicationResponse(
     LocalDateTime submittedAt,
     LocalDateTime publishedAt,
     Status status,
+    int viewCount,
+    int likeCount,
     List<Person>  authors,
     List<Topic> topics
 ) {
@@ -42,7 +59,7 @@ public record PublicationResponse(
    * @param topics the list of topics associated with the publication
    * @return a fully populated {@code PublicationResponse}
    */
-  public static PublicationResponse from(Publication publication, List<Person> authors, List<Topic> topics) {
+  public static PublicationResponse from(Publication publication, int viewCount, int likeCount, List<Person> authors, List<Topic> topics) {
     return new PublicationResponse(
         publication.pubId(),
         publication.title(),
@@ -54,6 +71,8 @@ public record PublicationResponse(
         publication.submittedAt(),
         publication.publishedAt(),
         publication.status(),
+        viewCount,
+        likeCount,
         authors,
         topics);
   }

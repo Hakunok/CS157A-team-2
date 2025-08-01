@@ -1,4 +1,7 @@
 package com.airchive.dto;
+
+import java.util.List;
+
 /**
  * Generic paginated response wrapper.
  */

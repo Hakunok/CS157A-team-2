@@ -1,6 +1,8 @@
 package com.airchive.dto;
 
 import com.airchive.entity.Collection;
+import java.time.LocalDateTime;
+import java.util.List;
 
 public record CollectionResponse(
     int collectionId,
@@ -22,4 +24,4 @@ public record CollectionResponse(
         publications
     );
   }
-  }
+}

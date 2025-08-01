@@ -6,6 +6,11 @@ package com.airchive.entity;
  *
  * <p>This entity is stored in the {@code person} table and is referenced by {@link Account} and
  * {@link PublicationAuthor}.
+ *
+ * @param personId
+ * @param firstName
+ * @param lastName
+ * @param identityEmail
  */
 public record Person(
     Integer personId,

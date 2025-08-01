@@ -9,6 +9,15 @@ import java.time.LocalDateTime;
  * information, and timestamps for the account.
  *
  * <p>This record should be used primarily between the repository and service layer.
+ *
+ * @param accountId
+ * @param personId
+ * @param email
+ * @param username
+ * @param passwordHash
+ * @param role
+ * @param isAdmin
+ * @param createdAt
  */
 public record Account(
     int accountId,

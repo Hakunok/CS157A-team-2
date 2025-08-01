@@ -16,6 +16,14 @@ import java.time.LocalDateTime;
  * </ul>
  *
  * <p>Each collection may contain multiple publications via the {@code collection_item} table.
+ *
+ * @param collectionId
+ * @param accountId
+ * @param title
+ * @param description
+ * @param isDefault
+ * @param isPublic
+ * @param createdAt
  */
 public record Collection(
     int collectionId,

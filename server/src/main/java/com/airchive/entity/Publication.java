@@ -15,6 +15,17 @@ import java.time.LocalDateTime;
  *   <li>One or more authors</li>
  *   <li>One or more topics</li>
  * </ul>
+ *
+ * @param pubId
+ * @param title
+ * @param content
+ * @param doi
+ * @param url
+ * @param kind
+ * @param submitterId
+ * @param submittedAt
+ * @param publishedAt
+ * @param status
  */
 public record Publication(
     int pubId,
@@ -31,6 +42,7 @@ public record Publication(
 
   /**
    * Indicates the type of {@link Publication}.
+   * <p>Enums: {@code PAPER}, {@code BLOG}, {@code ARTICLE}
    */
   public enum Kind {
     PAPER, BLOG, ARTICLE
@@ -38,6 +50,7 @@ public record Publication(
 
   /**
    * Indicates whether a {@link Publication} is in a draft or published state.
+   * <p>Enums: {@code PUBLISHED}, {@code DRAFT}
    */
   public enum Status {
     PUBLISHED, DRAFT

@@ -25,10 +25,16 @@ public enum Interaction {
     this.affinityWeight = affinityWeight;
   }
 
+  /**
+   * @return the affinity weight of the interaction
+   */
   public double getAffinityWeight() {
     return affinityWeight;
   }
 
+  /**
+   * @return the negative affinity weight of the interaction
+   */
   public double getNegativeAffinityWeight() {
     return -affinityWeight;
   }

@@ -6,6 +6,10 @@ package com.airchive.entity;
  * <p>This record models a row in the {@code publication_author} M:N relationship table,
  * linking a
  * {@link Publication} to a {@link Person} as an author.</p>
+ *
+ * @param pubId
+ * @param personId
+ * @param authorOrder
  */
 public record PublicationAuthor(
     int pubId,

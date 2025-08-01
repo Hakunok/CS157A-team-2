@@ -6,6 +6,10 @@ package com.airchive.entity;
  * <p>Topics are associated with publications through the {@code publication_topic} M:N
  * relationship table, enabling users to filter, search, and explore content based on
  * subject areas.
+ *
+ * @param topicId
+ * @param code
+ * @param fullName
  */
 public record Topic(
     int topicId,

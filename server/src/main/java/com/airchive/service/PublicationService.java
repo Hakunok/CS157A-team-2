@@ -252,4 +252,59 @@ public class PublicationService {
     );
   }
 
+  //For fetching batch data easier
+  Private Map<Integer, PublicationData> fetchPublicationData(List<Publications> publications) {
+    Set<Integer> pubIds = publications.stream()
+        .map(Publication::pubId)
+        .collect(Collectors.toSet());
+
+    // Batch fetch all author relationships
+    Map<Integer, List<Integer>> pubToAuthorIds = publicationAuthorRepository
+        .findPersonIdsByPublications(pubIds);
+    
+    // Batch fetch all topic relationships  
+    Map<Integer, List<Integer>> pubToTopicIds = publicationTopicRepository
+        .findTopicIdsByPublications(pubIds);
+
+    // Get all unique person and topic IDs
+    Set<Integer> allPersonIds = pubToAuthorIds.values().stream()
+        .flatMap(List::stream)
+        .collect(Collectors.toSet());
+        
+    Set<Integer> allTopicIds = pubToTopicIds.values().stream()
+        .flatMap(List::stream)
+        .collect(Collectors.toSet());
+
+    // Batch fetch all persons and topics
+    Map<Integer, Person> personMap = personRepository.findByIds(allPersonIds.stream().toList())
+        .stream()
+        .collect(Collectors.toMap(Person::personId, p -> p));
+        
+    Map<Integer, Topic> topicMap = topicRepository.findByIds(allTopicIds.stream().toList())
+        .stream()
+        .collect(Collectors.toMap(Topic::topicId, t -> t));
+
+    // Build the result map
+    Map<Integer, PublicationData> result = new HashMap<>();
+    
+    for (Publication pub : publications) {
+      List<Person> authors = pubToAuthorIds.getOrDefault(pub.pubId(), List.of())
+          .stream()
+          .map(personMap::get)
+          .filter(Objects::nonNull)
+          .toList();
+          
+      List<Topic> topics = pubToTopicIds.getOrDefault(pub.pubId(), List.of())
+          .stream()
+          .map(topicMap::get)
+          .filter(Objects::nonNull)
+          .toList();
+          
+      result.put(pub.pubId(), new PublicationData(authors, topics));
+    }
+    
+    return result;
+  }
+  // For recording batch data
+  private record PublicationData(List<Person> authors, List<Topics> topics) {}
 }

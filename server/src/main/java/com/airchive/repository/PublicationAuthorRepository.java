@@ -1,5 +1,6 @@
 package com.airchive.repository;
 
+import com.airchive.dto.MiniPerson;
 import com.airchive.entity.Publication;
 import com.airchive.entity.PublicationAuthor;
 import com.airchive.exception.EntityNotFoundException;
@@ -9,6 +10,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Manages the relationship between publications and their authors by interacting
@@ -207,6 +210,47 @@ public class PublicationAuthorRepository extends BaseRepository {
     );
   }
 
+  public Map<Integer, List<Integer>> getAuthorIdsByPublicationIds(List<Integer> pubIds, Connection conn) {
+    if (pubIds == null || pubIds.isEmpty()) return Map.of();
+
+    String placeholders = pubIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = """
+    SELECT pub_id, person_id FROM publication_author
+    WHERE pub_id IN (""" + placeholders + ") ORDER BY author_order ASC";
+
+    List<Map.Entry<Integer, Integer>> entries =
+        findMany(conn, sql, rs -> Map.entry(rs.getInt("pub_id"), rs.getInt("person_id")), pubIds.toArray());
+
+    return entries.stream().collect(Collectors.groupingBy(
+        Map.Entry::getKey,
+        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+    ));
+  }
+
+  public Map<Integer, MiniPerson> getFirstAuthorMap(List<Integer> pubIds) {
+    return withConnection(conn -> getFirstAuthorMap(pubIds, conn));
+  }
+
+
+  public Map<Integer, MiniPerson> getFirstAuthorMap(List<Integer> pubIds, Connection conn) {
+    if (pubIds.isEmpty()) return Map.of();
+
+    String placeholders = pubIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = """
+    SELECT pa.pub_id, p.person_id, p.first_name, p.last_name
+    FROM publication_author pa
+    JOIN person p ON pa.person_id = p.person_id
+    WHERE pa.author_order = 1 AND pa.pub_id IN (""" + placeholders + ")";
+
+    return findMany(conn, sql, rs -> Map.entry(
+        rs.getInt("pub_id"),
+        new MiniPerson(
+            rs.getInt("person_id"),
+            rs.getString("first_name") + " " + rs.getString("last_name")
+        )
+    ), pubIds.toArray()).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
   /**
    * Maps a row from the 'publication_author' table to a {@link PublicationAuthor} object.
    *
@@ -244,4 +288,4 @@ public class PublicationAuthorRepository extends BaseRepository {
         Publication.Status.valueOf(rs.getString("status"))
     );
   }
-}
+

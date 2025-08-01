@@ -206,12 +206,22 @@ public class PublicationService {
     return publications.stream().map(this::toMiniPublication).toList();
   }
 
+  public List<MiniPublication> getByKindAndTopic(Publication.Kind kind, int topicId, int page, int pageSize) {
+    List<Publication> publications = publicationRepository.findByKindAndTopics(kind, List.of(topicId), page, pageSize);
+    return toMiniPublications(publications);
+  }
   public List<MiniPublication> getMyPublications(SessionUser requester) {
     SecurityUtils.requireAuthor(requester);
     List<Publication> publications = publicationRepository.findAllBySubmitter(requester.accountId());
     return publications.stream().map(this::toMiniPublication).toList();
   }
 
+  public List<MiniPublication> getPublicationsFromDefault(SessionUser user) {
+    List<Integer> pubIds = collectionItemRepository.findPublicationIdsByDefault(user.accountId());
+    List<Publication> publications = publicationRepository.findByIds(pubIds);
+    return toMiniPublications(publications);
+  }
+  
   private PublicationResponse toPublicationResponse(Publication pub) {
     List<Integer> personIds = publicationAuthorRepository.findPersonIdsByPublication(pub.pubId());
     List<Person> authors = personRepository.findByIds(personIds);

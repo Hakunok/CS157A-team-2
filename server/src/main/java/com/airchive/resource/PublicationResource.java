@@ -146,17 +146,21 @@ public class PublicationResource {
   @GET
   @Path("/recommendations")
   public Response recommendations(
+      @QueryParam("kind") String kindStr,
+      @QueryParam("topicId") Integer topicId,
       @QueryParam("page") @DefaultValue("1") int page,
-      @QueryParam("pageSize") @DefaultValue("10") int pageSize,
-      @QueryParam("kind") String kind) {
+      @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
 
+    if(kindStr == null || kindStr.isBlank()) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("message", "Missing required 'kind' parameter")).build();
+    }
+    Publication.Kind kind = Publication.Kind.ValueOf(kindStr.toUpperCase());
+    if (topicId != null) {
+      List<MiniPublication> results = publicationService.getByKindAndTopic(kind, topicId, page, pageSize);
+      return Response.ok(results).build();
+    }
     SessionUser user = SecurityUtils.getSessionUserOrNull(request);
-
-    Publication.Kind kindEnum = (kind != null && !kind.isBlank())
-        ? Publication.Kind.valueOf(kind.toUpperCase())
-        : null;
-
-    List<MiniPublication> recs = publicationService.getRecommendations(user, pageSize, page, kindEnum);
+    List<MiniPublication> recs = publicationService.getRecommendations(user, kind, page, pageSize);
     return Response.ok(recs).build();
   }
 

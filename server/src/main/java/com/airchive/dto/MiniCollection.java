@@ -21,4 +21,15 @@ public record MiniCollection(
     boolean isDefault,
     boolean isPublic,
     LocalDateTime createdAt
-) {}
+) {
+
+  public static MiniCollection from(Collection collection) {
+    return new MiniCollection(
+        collection.collectionId(),
+        collection.title(),
+        collection.isDefault(),
+        collection.isPublic(),
+        collection.createdAt()
+    );
+  }
+}

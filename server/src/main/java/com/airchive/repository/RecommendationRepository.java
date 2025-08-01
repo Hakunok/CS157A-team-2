@@ -37,26 +37,26 @@ public class RecommendationRepository extends BaseRepository {
 
   public void updateAffinityForInteraction(int accountId, int pubId, double weight, Connection conn) {
     String topicSql = """
-        INSERT INTO topic_affinity (account_id, topic_id, score, last_updated)
-        SELECT ?, pt.topic_id, GREATEST(0, LEAST(?, COALESCE(SUM(?), 0))), NOW()
-        FROM publication_topic pt
-        WHERE pt.pub_id = ?
-        GROUP BY pt.topic_id
-        ON DUPLICATE KEY UPDATE
-          score = LEAST(?, score + VALUES(score)),
-          last_updated = VALUES(last_updated)
-        """;
+    INSERT INTO topic_affinity (account_id, topic_id, score, last_updated)
+    SELECT ?, pt.topic_id, GREATEST(0, LEAST(?, COALESCE(SUM(?), 0))), NOW()
+    FROM publication_topic pt
+    WHERE pt.pub_id = ?
+    GROUP BY pt.topic_id
+    ON DUPLICATE KEY UPDATE
+      score = LEAST(?, score + VALUES(score)),
+      last_updated = VALUES(last_updated)
+    """;
 
     String authorSql = """
-        INSERT INTO author_affinity (account_id, author_id, score, last_updated)
-        SELECT ?, pa.person_id, GREATEST(0, LEAST(?, COALESCE(SUM(?), 0))), NOW()
-        FROM publication_author pa
-        WHERE pa.pub_id = ?
-        GROUP BY pa.person_id
-        ON DUPLICATE KEY UPDATE
-          score = LEAST(?, score + VALUES(score)),
-          last_updated = VALUES(last_updated)
-        """;
+    INSERT INTO author_affinity (account_id, author_id, score, last_updated)
+    SELECT ?, pa.person_id, GREATEST(0, LEAST(?, COALESCE(SUM(?), 0))), NOW()
+    FROM publication_author pa
+    WHERE pa.pub_id = ?
+    GROUP BY pa.person_id
+    ON DUPLICATE KEY UPDATE
+      score = LEAST(?, score + VALUES(score)),
+      last_updated = VALUES(last_updated)
+    """;
 
     executeUpdate(conn, topicSql, accountId, MAX_SCORE, weight, pubId, MAX_SCORE);
     executeUpdate(conn, authorSql, accountId, MAX_SCORE, weight, pubId, MAX_SCORE);
@@ -74,22 +74,22 @@ public class RecommendationRepository extends BaseRepository {
     executeUpdate(conn, "DELETE FROM author_affinity WHERE account_id = ?", accountId);
 
     String affinitySql = """
-      WITH user_interactions AS (
-        SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score 
-        FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-        UNION ALL
-        SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?) 
-        FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-        UNION ALL
-        SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?) 
-        FROM collection_item ci 
-        JOIN collection c ON ci.collection_id = c.collection_id 
-        WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      )
-      INSERT INTO topic_affinity (account_id, topic_id, score, last_updated)
-      SELECT ?, pt.topic_id, LEAST(?, SUM(ui.weighted_score)), NOW()
-      FROM user_interactions ui JOIN publication_topic pt ON ui.pub_id = pt.pub_id
-      GROUP BY pt.topic_id ORDER BY 3 DESC LIMIT ?;
+    WITH user_interactions AS (
+      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score
+      FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+      UNION ALL
+      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?)
+      FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+      UNION ALL
+      SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?)
+      FROM collection_item ci
+      JOIN collection c ON ci.collection_id = c.collection_id
+      WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+    )
+    INSERT INTO topic_affinity (account_id, topic_id, score, last_updated)
+    SELECT ?, pt.topic_id, LEAST(?, SUM(ui.weighted_score)), NOW()
+    FROM user_interactions ui JOIN publication_topic pt ON ui.pub_id = pt.pub_id
+    GROUP BY pt.topic_id ORDER BY 3 DESC LIMIT ?;
     """;
 
     executeUpdate(conn, affinitySql,
@@ -99,22 +99,22 @@ public class RecommendationRepository extends BaseRepository {
         accountId, MAX_SCORE, MAX_AFFINITY_PER_USER);
 
     String authorSql = """
-      WITH user_interactions AS (
-        SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score 
-        FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-        UNION ALL
-        SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?) 
-        FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-        UNION ALL
-        SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?) 
-        FROM collection_item ci 
-        JOIN collection c ON ci.collection_id = c.collection_id 
-        WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      )
-      INSERT INTO author_affinity (account_id, author_id, score, last_updated)
-      SELECT ?, pa.person_id, LEAST(?, SUM(ui.weighted_score)), NOW()
-      FROM user_interactions ui JOIN publication_author pa ON ui.pub_id = pa.pub_id
-      GROUP BY pa.person_id ORDER BY 3 DESC LIMIT ?;
+    WITH user_interactions AS (
+      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score
+      FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+      UNION ALL
+      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?)
+      FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+      UNION ALL
+      SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?)
+      FROM collection_item ci
+      JOIN collection c ON ci.collection_id = c.collection_id
+      WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+    )
+    INSERT INTO author_affinity (account_id, author_id, score, last_updated)
+    SELECT ?, pa.person_id, LEAST(?, SUM(ui.weighted_score)), NOW()
+    FROM user_interactions ui JOIN publication_author pa ON ui.pub_id = pa.pub_id
+    GROUP BY pa.person_id ORDER BY 3 DESC LIMIT ?;
     """;
 
     executeUpdate(conn, authorSql,
@@ -151,7 +151,7 @@ public class RecommendationRepository extends BaseRepository {
       WHERE ta.account_id = ? AND ta.score > 0.5 AND p.status = 'PUBLISHED'
       AND NOT EXISTS (SELECT 1 FROM publication_view pv WHERE pv.account_id = ? AND pv.pub_id = p.pub_id)
       AND NOT EXISTS (SELECT 1 FROM publication_like pl WHERE pl.account_id = ? AND pl.pub_id = p.pub_id)
-    """);
+      """);
       addKindFilter(sql, kind);
       sql.append(" ORDER BY ta.score DESC, p.published_at DESC LIMIT ? OFFSET ?");
 
@@ -199,9 +199,7 @@ public class RecommendationRepository extends BaseRepository {
     return withConnection(conn -> {
       StringBuilder sql = new StringBuilder("""
       SELECT p.pub_id,
-             (COUNT(DISTINCT pv.account_id) * ? +
-              COUNT(DISTINCT pl.account_id) * ? +
-              COUNT(DISTINCT ci.collection_id) * ?) as popularity_score
+      (COUNT(DISTINCT pv.account_id) * ? + COUNT(DISTINCT pl.account_id) * ? + COUNT(DISTINCT ci.collection_id) * ?) as popularity_score
       FROM publication p
       LEFT JOIN publication_view pv ON pv.pub_id = p.pub_id
       LEFT JOIN publication_like pl ON pl.pub_id = p.pub_id
@@ -237,10 +235,7 @@ public class RecommendationRepository extends BaseRepository {
   public List<Integer> getPopularRecommendationsForGuest(int limit, int offset, Publication.Kind kind) {
     return withConnection(conn -> {
       StringBuilder sql = new StringBuilder("""
-      SELECT p.pub_id,
-             (COUNT(DISTINCT pv.account_id) * ? +
-              COUNT(DISTINCT pl.account_id) * ? +
-              COUNT(DISTINCT ci.collection_id) * ?) as popularity_score
+      SELECT p.pub_id, (COUNT(DISTINCT pv.account_id) * ? + COUNT(DISTINCT pl.account_id) * ? + COUNT(DISTINCT ci.collection_id) * ?) as popularity_score
       FROM publication p
       LEFT JOIN publication_view pv ON pv.pub_id = p.pub_id
       LEFT JOIN publication_like pl ON pl.pub_id = p.pub_id
@@ -287,11 +282,6 @@ public class RecommendationRepository extends BaseRepository {
    * Generates a list of recommended publications.
    * First attempts to fill the page with recommendations generated from the account's affinities.
    * The remaining spaces are filled with the platform's popular recommendations.
-   * @param accountId
-   * @param limit
-   * @param offset
-   * @param kind
-   * @return
    */
   public List<Integer> getSmartRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
     return withConnection(conn -> {

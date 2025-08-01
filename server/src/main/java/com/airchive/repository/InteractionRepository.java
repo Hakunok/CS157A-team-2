@@ -6,6 +6,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Manages data persistence for user interactions with publications, such as
@@ -221,6 +223,34 @@ public class InteractionRepository extends BaseRepository {
       """;
 
     return findMany(conn, sql, this::mapRowToSummary, accountId, accountId, limit);
+  }
+
+  public Map<Integer, Integer> getViewCounts(List<Integer> pubIds) {
+    return withConnection(conn -> getViewCounts(pubIds, conn));
+  }
+
+  public Map<Integer, Integer> getViewCounts(List<Integer> pubIds, Connection conn) {
+    if (pubIds.isEmpty()) return Map.of();
+
+    String placeholders = pubIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = "SELECT pub_id, COUNT(*) AS views FROM publication_view WHERE pub_id IN (" + placeholders + ") GROUP BY pub_id";
+
+    return findMany(conn, sql, rs -> Map.entry(rs.getInt("pub_id"), rs.getInt("views")), pubIds.toArray())
+        .stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  public Map<Integer, Integer> getLikeCounts(List<Integer> pubIds) {
+    return withConnection(conn -> getLikeCounts(pubIds, conn));
+  }
+
+  public Map<Integer, Integer> getLikeCounts(List<Integer> pubIds, Connection conn) {
+    if (pubIds == null || pubIds.isEmpty()) return Map.of();
+
+    String placeholders = pubIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = "SELECT pub_id, COUNT(*) AS likes FROM publication_like WHERE pub_id IN (" + placeholders + ") GROUP BY pub_id";
+
+    return findMany(conn, sql, rs -> Map.entry(rs.getInt("pub_id"), rs.getInt("likes")), pubIds.toArray())
+        .stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   /**

@@ -1,12 +1,15 @@
 package com.airchive.repository;
 
 import com.airchive.entity.PublicationTopic;
+import com.airchive.entity.Topic;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.ValidationException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Manages the relationship between publications and topics by interacting
@@ -180,6 +183,33 @@ public class PublicationTopicRepository extends BaseRepository {
         topicId
     );
   }
+
+  public Map<Integer, List<Topic>> getTopicsMap(List<Integer> pubIds) {
+    return withConnection(conn -> getTopicsMap(pubIds, conn));
+  }
+
+
+  public Map<Integer, List<Topic>> getTopicsMap(List<Integer> pubIds, Connection conn) {
+    if (pubIds.isEmpty()) return Map.of();
+
+    String placeholders = pubIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String sql = """
+    SELECT pt.pub_id, t.topic_id, t.code, t.full_name
+    FROM publication_topic pt
+    JOIN topic t ON pt.topic_id = t.topic_id
+    WHERE pt.pub_id IN (""" + placeholders + ")";
+
+    List<Map.Entry<Integer, Topic>> entries =
+        findMany(conn, sql, rs -> Map.entry(rs.getInt("pub_id"),
+                new Topic(rs.getInt("topic_id"), rs.getString("code"), rs.getString("full_name"))),
+            pubIds.toArray());
+
+    return entries.stream().collect(Collectors.groupingBy(
+        Map.Entry::getKey,
+        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+    ));
+  }
+
 
   /**
    * Maps a row from the 'publication_topic' table to a {@link PublicationTopic} object.

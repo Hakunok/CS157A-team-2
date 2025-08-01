@@ -133,6 +133,10 @@ public class PublicationService {
         throw new ValidationException("At least one topic must be specified");
       }
 
+      if (request.topicIds().size() > 3) {
+        throw new ValidationException("Only 3 topics can be tagged at most");
+      }
+
       for (int i = 0; i < request.authorIds().size(); i++) {
         int personId = request.authorIds().get(i);
         if (personRepository.findById(personId, conn).isEmpty()) {

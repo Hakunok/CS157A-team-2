@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -296,6 +297,36 @@ public class PublicationRepository extends BaseRepository {
         Integer.class
     ).stream().findFirst().orElse(0);
   }
+
+  public List<Publication> findByKindAndTopics(Publication.Kind kind, List<Integer> topicIds, int page, int pageSize) {
+    return withConnection(conn -> findByKindAndTopics(kind, topicIds, page, pageSize, conn));
+  }
+
+  public List<Publication> findByKindAndTopics(Publication.Kind kind, List<Integer> topicIds, int page, int pageSize, Connection conn) {
+    if (topicIds == null || topicIds.isEmpty()) return List.of();
+    int offset = (page - 1) * pageSize;
+
+    String placeholders = topicIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    StringBuilder sql = new StringBuilder("""
+    SELECT DISTINCT p.*
+    FROM publication p
+    JOIN publication_topic pt ON pt.publication_id = p.pub_id
+    WHERE p.status = 'PUBLISHED' AND pt.topic_id IN (""" + placeholders + ")");
+
+    List<Object> params = new ArrayList<>(topicIds);
+
+    if (kind != null) {
+      sql.append(" AND p.kind = ?");
+      params.add(kind.name());
+    }
+
+    sql.append(" ORDER BY p.published_at DESC LIMIT ? OFFSET ?");
+    params.add(pageSize);
+    params.add(offset);
+
+    return findMany(conn, sql.toString(), this::mapRowToPublication, params.toArray());
+  }
+
 
   /**
    * Finds all publications submitted by a specific account.

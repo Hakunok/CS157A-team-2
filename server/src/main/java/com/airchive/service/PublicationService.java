@@ -223,33 +223,34 @@ public class PublicationService {
   }
   
   private PublicationResponse toPublicationResponse(Publication pub) {
-    List<Integer> personIds = publicationAuthorRepository.findPersonIdsByPublication(pub.pubId());
-    List<Person> authors = personRepository.findByIds(personIds);
-
-    List<Integer> topicIds = publicationTopicRepository.findTopicIdsByPublication(pub.pubId());
-    List<Topic> topics = topicRepository.findByIds(topicIds);
-
-    return PublicationResponse.from(pub, authors, topics);
+    PublicationData data = fetchPublicationData(List.of(pub)).get(pub.pubId());
+    return PublicationResponse.from(pub, data.authors(), data.topics());
   }
 
-  private MiniPublication toMiniPublication(Publication pub) {
-    List<Person> authors = personRepository.findByIds(
-        publicationAuthorRepository.findPersonIdsByPublication(pub.pubId())
-    );
-    List<MiniPerson> miniAuthors = authors.stream().map(MiniPerson::from).toList();
+  private List<MiniPublication> toMiniPublications(List<Publication> publications) {
+    if (publications.isEmpty()) {
+      return List.of();
+    }
 
-    List<Topic> topics = topicRepository.findByIds(
-        publicationTopicRepository.findTopicIdsByPublication(pub.pubId())
-    );
-
-    return new MiniPublication(
-        pub.pubId(),
-        pub.title(),
-        pub.kind(),
-        pub.publishedAt(),
-        miniAuthors,
-        topics
-    );
+    Map<Integer, PublicationData> dataMap = fetchPublicationData(publications);
+    
+    return publications.stream()
+        .map(pub -> {
+          PublicationData data = dataMap.get(pub.pubId());
+          List<MiniPerson> miniAuthors = data.authors().stream()
+              .map(MiniPerson::from)
+              .toList();
+              
+          return new MiniPublication(
+              pub.pubId(),
+              pub.title(),
+              pub.kind(),
+              pub.publishedAt(),
+              miniAuthors,
+              data.topics()
+          );
+        })
+        .toList();
   }
 
   //For fetching batch data easier

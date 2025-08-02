@@ -70,6 +70,7 @@ public class AppBootstrap implements ServletContextListener {
     var collectionService = new CollectionService(
         collectionRepository,
         collectionItemRepository,
+        publicationRepository, 
         recommendationRepository
     );
 

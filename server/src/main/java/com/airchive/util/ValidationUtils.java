@@ -208,4 +208,12 @@ public class ValidationUtils {
   public static boolean isValidTitle(String title) {
     return title != null && title.length() <= 150;
   }
+  public static void validateCollectionTitle(String title) {
+    if (title == null || title.trim().isEmpty()) {
+        throw new ValidationException("Collection title cannot be empty.");
+    }
+    if (title.length() > 100) {
+        throw new ValidationException("Collection title too long.");
+    }
+}
 }

@@ -6,13 +6,13 @@ import com.airchive.dto.SessionUser;
 import com.airchive.dto.UserResponse;
 import com.airchive.entity.Account;
 import com.airchive.entity.Person;
+import com.airchive.exception.AuthenticationException;
 import com.airchive.service.PersonAccountService;
 
 import com.airchive.util.SecurityUtils;
 import com.airchive.util.ValidationUtils;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.PostConstruct;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -38,20 +38,18 @@ public class AuthResource {
 
   private PersonAccountService accountService;
 
-  @PostConstruct
-  public void init() {
-    this.accountService = (PersonAccountService) ctx.getAttribute("personAccountService");
+  private PersonAccountService getAccountService() {
+    if (accountService == null) {
+      accountService = (PersonAccountService) ctx.getAttribute("personAccountService");
+    }
+    return accountService;
   }
 
-  /**
-   * Registers a new user account and logs the user in by starting a new session.
-   *
-   * @param req the registration details submitted by the client
-   * @return the created user profile as {@link UserResponse}
-   */
   @POST
   @Path("/register")
-  public Response register (AccountRegisterRequest req) {
+  public Response register(AccountRegisterRequest req) {
+    PersonAccountService service = getAccountService();
+
     Person person = new Person(0, req.firstName(), req.lastName(), req.email());
     Account account = new Account(
         0,
@@ -64,129 +62,105 @@ public class AuthResource {
         null
     );
 
-    Account newAccount = accountService.createAccount(person, account);
-    Person newPerson = accountService.getPersonById(newAccount.personId());
+    Account newAccount = service.createAccount(person, account);
+    Person newPerson = service.getPersonById(newAccount.personId());
 
     SessionUser sessionUser = SessionUser.from(newAccount);
-    request.getSession().setAttribute("user", sessionUser);
+    HttpSession session = request.getSession(true);
+    session.setAttribute("user", sessionUser);
 
-    return Response.ok(UserResponse.from(newAccount, newPerson)).build();
+    NewCookie sessionCookie = new NewCookie(
+        "JSESSIONID",
+        session.getId(),
+        "/",
+        null,
+        null,
+        60 * 60 * 24 * 30,
+        false,
+        true
+    );
+
+    return Response.ok(UserResponse.from(newAccount, newPerson))
+        .cookie(sessionCookie)
+        .build();
   }
 
-  /**
-   * Logs in a user using username or email and sets the session user.
-   *
-   * @param req the login credentials
-   * @return a {@link Response} containing the authenticated user profile as {@link UserResponse}
-   */
   @POST
   @Path("/login")
-  public Response login (LoginRequest req) {
-    Account account = accountService.login(req.usernameOrEmail().toLowerCase(), req.password());
-    Person person = accountService.getPersonById(account.personId());
+  public Response login(LoginRequest req) {
+    PersonAccountService service = getAccountService();
+
+    Account account = service.login(req.usernameOrEmail().toLowerCase(), req.password());
+    Person person = service.getPersonById(account.personId());
 
     SessionUser sessionUser = SessionUser.from(account);
-    request.getSession().setAttribute("user", sessionUser);
+    HttpSession session = request.getSession(true);
+    session.setAttribute("user", sessionUser);
 
-    return Response.ok(UserResponse.from(account, person)).build();
+    NewCookie sessionCookie = new NewCookie(
+        "JSESSIONID",
+        session.getId(),
+        "/",
+        null,
+        null,
+        60 * 60 * 24 * 30,
+        false,
+        true
+    );
+
+    return Response.ok(UserResponse.from(account, person))
+        .cookie(sessionCookie)
+        .build();
   }
 
-  /**
-   * Logs out the current user by invalidating their session.
-   *
-   * @return a {@link Response} containing a confirmation message
-   */
-  @POST
-  @Path("/logout")
-  public Response logout () {
-    HttpSession session = request.getSession(false);
-    if (session != null) {
-      session.invalidate();
-    }
-    return Response.ok(Map.of("message", "Logged out.")).build();
-  }
-
-  /**
-   * Returns the currently logged-in user's profile, refreshing session info.
-   *
-   * @return a {@link Response} containing the current session user's full profile as
-   * {@link UserResponse}
-   */
   @GET
   @Path("/me")
-  public Response getMe () {
+  public Response getMe() {
     HttpSession session = request.getSession(false);
-    if (session == null) throw new NotAuthorizedException("Login required");
+    SessionUser sessionUser = SecurityUtils.getSessionUserOrNull(request);
 
-    SessionUser sessionUser = (SessionUser) session.getAttribute("user");
-    if (sessionUser == null) throw new NotAuthorizedException("Login required");
+    if (sessionUser == null) {
+      return Response.ok().entity(null).build();
+    }
 
-    Account account = accountService.getAccountById(sessionUser.accountId());
-    Person person = accountService.getPersonById(account.personId());
+    PersonAccountService service = getAccountService();
+    Account account = service.getAccountById(sessionUser.accountId());
+    Person person = service.getPersonById(account.personId());
 
     session.setAttribute("user", SessionUser.from(account));
 
     return Response.ok(UserResponse.from(account, person)).build();
   }
 
-  /**
-   * Validates the given registration request without creating an account.
-   *
-   * <p>This checks for field format (email, password, etc.) and uniqueness of username and email.
-   *
-   * @param req the registration input to validate
-   * @return a {@link Response} containing a map containing validation results and field errors if
-   * any
-   */
   @POST
-  @Path("/validate")
-  public Response validate(AccountRegisterRequest req) {
-    Map<String, String> errors = new HashMap<>();
-
-    String username = req.username().toLowerCase().trim();
-    String email = req.email().toLowerCase().trim();
-
-    if (!ValidationUtils.isValidUsername(username)) {
-      errors.put("username", "Username must be 3–20 characters and contain only a-z, 0-9, ., _, or -.");
-    } else if (accountService.usernameExists(username)) {
-      errors.put("username", "Username is already taken.");
+  @Path("/logout")
+  public Response logout() {
+    HttpSession session = request.getSession(false);
+    if (session != null) {
+      session.invalidate();
     }
 
-    if (!ValidationUtils.isValidEmail(email)) {
-      errors.put("email", "Invalid email format.");
-    } else if (accountService.emailExists(email)) {
-      errors.put("email", "Email is already in use.");
-    }
+    NewCookie expiredCookie = new NewCookie(
+        "JSESSIONID",
+        "",
+        "/",
+        null,
+        null,
+        0,
+        false,
+        true
+    );
 
-    if (!ValidationUtils.isValidPassword(req.password())) {
-      errors.put("password", "Password must be at least 8 characters.");
-    }
-
-    if (!ValidationUtils.isValidName(req.firstName())) {
-      errors.put("firstName", "First name must be letters only, up to 40 characters.");
-    }
-
-    if (!ValidationUtils.isValidName(req.lastName())) {
-      errors.put("lastName", "Last name must be letters only, up to 40 characters.");
-    }
-
-    return Response.ok(Map.of(
-        "valid", errors.isEmpty(),
-        "errors", errors
-    )).build();
+    return Response.ok(Map.of("message", "Logged out."))
+        .cookie(expiredCookie)
+        .build();
   }
 
-  /**
-   * Promotes another account to admin (admin-only access).
-   *
-   * @param accountId the id of the account to promote
-   * @return a {@link Response} containing a confirmation message
-   */
   @POST
   @Path("/promote/{accountId}")
   public Response promote(@PathParam("accountId") int accountId) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    accountService.makeAdmin(user, accountId);
+    getAccountService().makeAdmin(user, accountId);
     return Response.ok(Map.of("message", "Account promoted.")).build();
   }
 }

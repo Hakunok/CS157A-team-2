@@ -23,7 +23,7 @@ public class TopicService {
     ValidationUtils.validateTopicCode(topic.code());
     ValidationUtils.validateTopicFullName(topic.fullName());
 
-    if (topicRepository.existsByCode(topic.code())) throw new ValidationException("A topic with this code already exists.");
+    if (topicRepository.existsByCode(topic.code().toUpperCase())) throw new ValidationException("A topic with this code already exists.");
 
     return topicRepository.create(topic);
   }
@@ -37,13 +37,13 @@ public class TopicService {
     Topic existing = topicRepository.findById(topicId)
         .orElseThrow(() -> new EntityNotFoundException("Topic not found."));
 
-    topicRepository.findByCode(code).ifPresent(conflict -> {
+    topicRepository.findByCode(code.toUpperCase()).ifPresent(conflict -> {
       if (conflict.topicId() != topicId) {
         throw new ValidationException("Another topic with this code already exists.");
       }
     });
 
-    topicRepository.update(topicId, code, fullName);
+    topicRepository.update(topicId, code.toUpperCase(), fullName);
   }
 
   public void deleteTopic(SessionUser user, int topicId) {

@@ -1,6 +1,7 @@
 package com.airchive.service;
 
 import com.airchive.db.Transaction;
+import com.airchive.dto.PendingAuthorRequest;
 import com.airchive.dto.SessionUser;
 import com.airchive.entity.Account;
 import com.airchive.entity.AuthorRequest;
@@ -37,10 +38,8 @@ public class AuthorRequestService {
       throw new ValidationException("Account already has a pending author request.");
     }
 
-    AuthorRequest req = new AuthorRequest(accountId, AuthorRequest.Status.PENDING, LocalDateTime.now());
-    return authorRequestRepository.create(req);
+    return authorRequestRepository.create(accountId);
   }
-
 
   public void approveRequest(SessionUser requester, int accountId) {
     SecurityUtils.requireAdmin(requester);
@@ -77,7 +76,7 @@ public class AuthorRequestService {
     }
   }
 
-  public List<AuthorRequest> getPendingRequests(SessionUser requester, int page, int pageSize) {
+  public List<PendingAuthorRequest> getPendingRequests(SessionUser requester, int page, int pageSize) {
     SecurityUtils.requireAdmin(requester);
 
     return authorRequestRepository.findAllPending(page, pageSize);

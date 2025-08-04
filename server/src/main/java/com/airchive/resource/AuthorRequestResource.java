@@ -1,12 +1,12 @@
 package com.airchive.resource;
 
+import com.airchive.dto.PendingAuthorRequest;
 import com.airchive.dto.SessionUser;
 import com.airchive.entity.AuthorRequest;
 import com.airchive.service.AuthorRequestService;
 
 import com.airchive.util.SecurityUtils;
 import java.util.Map;
-import javax.annotation.PostConstruct;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.*;
@@ -25,16 +25,13 @@ import java.util.List;
 @Path("/author-requests")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class AuthorRequestResource {
+public class AuthorRequestsResource {
 
   @Context private ServletContext ctx;
   @Context private HttpServletRequest request;
 
-  private AuthorRequestService authorRequestService;
-
-  @PostConstruct
-  public void init() {
-    this.authorRequestService = (AuthorRequestService) ctx.getAttribute("authorRequestService");
+  private AuthorRequestService getService() {
+    return (AuthorRequestService) ctx.getAttribute("authorRequestService");
   }
 
   /**
@@ -45,8 +42,18 @@ public class AuthorRequestResource {
   @POST
   public Response submitRequest() {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    AuthorRequest created = authorRequestService.submitRequest(user);
+    AuthorRequest created = getService().submitRequest(user);
     return Response.status(Response.Status.CREATED).entity(created).build();
+  }
+
+  @GET
+  @Path("/status")
+  public Response getStatus() {
+    SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
+
+    boolean pending = getService().hasPendingRequest(user.accountId());
+
+    return Response.ok(Map.of("status", pending ? "PENDING" : "NONE")).build();
   }
 
   /**
@@ -63,7 +70,7 @@ public class AuthorRequestResource {
       @QueryParam("page") @DefaultValue("1") int page,
       @QueryParam("pageSize") @DefaultValue("20") int pageSize) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    List<AuthorRequest> requests = authorRequestService.getPendingRequests(user, page, pageSize);
+    List<PendingAuthorRequest> requests = getService().getPendingRequests(user, page, pageSize);
     return Response.ok(requests).build();
   }
 
@@ -76,7 +83,7 @@ public class AuthorRequestResource {
   @Path("/pending/count")
   public Response getPendingCount() {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    int count = authorRequestService.countPendingRequests(user);
+    int count = getService().countPendingRequests(user);
     return Response.ok(Map.of("count", count)).build();
   }
 
@@ -90,7 +97,7 @@ public class AuthorRequestResource {
   @Path("/{accountId}/approve")
   public Response approveRequest(@PathParam("accountId") int accountId) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    authorRequestService.approveRequest(user, accountId);
+    getService().approveRequest(user, accountId);
     return Response.ok(Map.of("message", "Author request approved.")).build();
   }
 }

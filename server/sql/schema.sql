@@ -65,7 +65,7 @@ CREATE TABLE topic (
 CREATE TABLE publication (
     pub_id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(150) NOT NULL,
-    content TEXT,
+    content LONGTEXT,
     doi VARCHAR(100) UNIQUE,
     url VARCHAR(2083),
     kind ENUM('PAPER', 'BLOG', 'ARTICLE') NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE publication (
     submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     published_at DATETIME,
     status ENUM('PUBLISHED', 'DRAFT') NOT NULL DEFAULT 'DRAFT',
-    FOREIGN KEY (submitter_id) REFERENCES account(account_id) ON DELETE SET NULL,
+    FOREIGN KEY (submitter_id) REFERENCES account(account_id) ON DELETE SET NULL
 );
 
 -- =============================================================================

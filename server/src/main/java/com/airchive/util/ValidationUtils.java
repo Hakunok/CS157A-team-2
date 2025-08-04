@@ -26,7 +26,7 @@ public class ValidationUtils {
       Pattern.compile("^[A-Za-z'\\- ]+$");
 
   private static final Pattern TOPIC_CODE_PATTERN =
-      Pattern.compile("^[a-z0-9-]+$");
+      Pattern.compile("^[a-zA-Z0-9-]+$");
 
   private ValidationUtils() {}
 
@@ -50,9 +50,9 @@ public class ValidationUtils {
    */
   public static boolean isValidEmail(String email) {
     return email != null
-        && email.trim().length() >= 3
-        && email.trim().length() <= 75
-        && EMAIL_PATTERN.matcher(email.trim()).matches();
+        && email.length() >= 3
+        && email.length() <= 75
+        && EMAIL_PATTERN.matcher(email).matches();
   }
 
   /**
@@ -80,7 +80,7 @@ public class ValidationUtils {
     return username != null
         && username.length() >= 3
         && username.length() <= 20
-        && USERNAME_PATTERN.matcher(username.trim().toLowerCase()).matches();
+        && USERNAME_PATTERN.matcher(username.toLowerCase()).matches();
   }
 
   /**

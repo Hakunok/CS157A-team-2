@@ -47,7 +47,7 @@ public class TopicRepository extends BaseRepository {
     int newId = executeInsertWithGeneratedKey(
         conn,
         "INSERT INTO topic (code, full_name) VALUES (?, ?)",
-        topic.code(),
+        topic.code().toUpperCase(),
         topic.fullName()
     );
     return findById(newId, conn).orElseThrow(() -> new EntityNotFoundException("Topic creation failed."));
@@ -88,7 +88,7 @@ public class TopicRepository extends BaseRepository {
     int rows = executeUpdate(
         conn,
         "UPDATE topic SET code = ?, full_name = ? WHERE topic_id = ?",
-        code, fullName, topicId
+        code.toUpperCase(), fullName, topicId
     );
     if (rows == 0) {
       throw new EntityNotFoundException("Topic not found for update.");

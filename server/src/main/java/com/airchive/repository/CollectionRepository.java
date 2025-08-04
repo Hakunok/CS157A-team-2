@@ -76,14 +76,13 @@ public class CollectionRepository extends BaseRepository {
       throw new ValidationException("Cannot create default collection");
     }
     String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
-                     "VALUES (?, ?, ?, ?, ?)";
+                     "VALUES (?, ?, ?, FALSE, ?)";
     int newId = executeInsertWithGeneratedKey(
         conn,
         sql,
         collection.accountId(),
         collection.title(),
         collection.description(),
-        false,
         collection.isPublic()
     );
 
@@ -200,8 +199,30 @@ public class CollectionRepository extends BaseRepository {
    * @param isPublic The new visibility status.
    * @throws EntityNotFoundException if no collection with the given ID is found.
    */
-public void updateVisibility(int collectionId, boolean isPublic) {
-  withConnection(conn -> {
+  public void updateVisibility(int collectionId, boolean isPublic) {
+    withConnection(conn -> {
+      int rows = executeUpdate(
+        conn,
+        "UPDATE collection SET is_public = ? WHERE collection_id = ?",
+        isPublic,
+        collectionId
+      );
+      if (rows == 0) {
+        throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+      }
+      return null;
+    });
+  }
+
+  /**
+   * Updates the visibility of a collection using a provided connection.
+   *
+   * @param collectionId The ID of the collection to update.
+   * @param isPublic The new visibility status.
+   * @param conn The active database connection.
+   * @throws EntityNotFoundException if no collection with the given ID is found.
+   */
+  public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
     int rows = executeUpdate(
       conn,
       "UPDATE collection SET is_public = ? WHERE collection_id = ?",
@@ -211,28 +232,7 @@ public void updateVisibility(int collectionId, boolean isPublic) {
     if (rows == 0) {
       throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
     }
-    return null;
-  });
-}
-  /**
-   * Updates the visibility of a collection using a provided connection.
-   *
-   * @param collectionId The ID of the collection to update.
-   * @param isPublic The new visibility status.
-   * @param conn The active database connection.
-   * @throws EntityNotFoundException if no collection with the given ID is found.
-   */
-public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
-  int rows = executeUpdate(
-    conn,
-    "UPDATE collection SET is_public = ? WHERE collection_id = ?",
-    isPublic,
-    collectionId
-  );
-  if (rows == 0) {
-    throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
   }
-}
 
   /**
    * Deletes a collection from the database.
@@ -241,12 +241,12 @@ public void updateVisibility(int collectionId, boolean isPublic, Connection conn
    * @throws ValidationException if the collection is a default collection.
    * @throws EntityNotFoundException if the collection does not exist.
    */
-public void delete(int collectionId) {
-  withConnection(conn -> {
-    delete(collectionId, conn);
-    return null;
-  });
-}
+  public void delete(int collectionId) {
+    withConnection(conn -> {
+      delete(collectionId, conn);
+      return null;
+    });
+  }
 
   /**
    * Deletes a collection using a provided connection.
@@ -256,24 +256,24 @@ public void delete(int collectionId) {
    * @throws ValidationException if the collection is a default collection.
    * @throws EntityNotFoundException if the collection does not exist.
    */
-public void delete(int collectionId, Connection conn) {
-  Optional<Collection> col = findById(collectionId, conn);
-  if (col.isEmpty()) {
-    throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
-  }
-  if (col.get().isDefault()) {
-    throw new ValidationException("Cannot delete the default collection.");
-  }
+  public void delete(int collectionId, Connection conn) {
+    Optional<Collection> col = findById(collectionId, conn);
+    if (col.isEmpty()) {
+      throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+    }
+    if (col.get().isDefault()) {
+      throw new ValidationException("Cannot delete the default collection.");
+    }
 
-  int rows = executeUpdate(
-    conn,
-    "DELETE FROM collection WHERE collection_id = ?",
-    collectionId
-  );
-  if (rows == 0) {
-    throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+    int rows = executeUpdate(
+      conn,
+      "DELETE FROM collection WHERE collection_id = ?",
+      collectionId
+    );
+    if (rows == 0) {
+      throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+    }
   }
-}
 
   /**
    * Maps a row from the 'collection' table in a {@link ResultSet} to a {@link Collection} object.

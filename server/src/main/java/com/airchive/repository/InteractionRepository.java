@@ -1,10 +1,12 @@
 package com.airchive.repository;
 
 import com.airchive.dto.InteractionSummary;
+import com.airchive.exception.DataAccessException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -147,7 +149,7 @@ public class InteractionRepository extends BaseRepository {
    */
   public void addView(int accountId, int pubId, Connection conn) {
     executeUpdate(conn,
-        "INSERT INTO publication_view (account_id, pub_id, viewed_at) VALUES (?, ?, NOW())",
+        "INSERT INTO publication_view (account_id, pub_id) VALUES (?, ?)",
         accountId,
         pubId
     );
@@ -211,18 +213,40 @@ public class InteractionRepository extends BaseRepository {
    * @return A {@link List} of {@link InteractionSummary} objects.
    */
   public List<InteractionSummary> findRecentInteractionsByAccount(int accountId, int limit, Connection conn) {
-    String sql =
-      """
-      (SELECT pub_id, 'VIEW' AS interaction_type, viewed_at AS timestamp
-       FROM publication_view WHERE account_id = ?)
-      UNION ALL
-      (SELECT pub_id, 'LIKE' AS interaction_type, liked_at AS timestamp
-       FROM publication_like WHERE account_id = ?)
-      ORDER BY timestamp DESC
-      LIMIT ?
-      """;
+    String sql = """
+    (SELECT v.pub_id, p.title, 'VIEW' AS interaction_type, v.viewed_at AS timestamp
+     FROM publication_view v
+     JOIN publication p ON v.pub_id = p.id
+     WHERE v.account_id = ?)
+    UNION ALL
+    (SELECT l.pub_id, p.title, 'LIKE' AS interaction_type, l.liked_at AS timestamp
+     FROM publication_like l
+     JOIN publication p ON l.pub_id = p.id
+     WHERE l.account_id = ?)
+    UNION ALL
+    (SELECT ci.pub_id, p.title, 'SAVE' AS interaction_type, ci.added_at AS timestamp
+     FROM collection_item ci
+     JOIN collection c ON ci.collection_id = c.id
+     JOIN publication p ON ci.pub_id = p.id
+     WHERE c.account_id = ? AND c.is_default = true)
+    ORDER BY timestamp DESC
+    LIMIT ?
+    """;
 
-    return findMany(conn, sql, this::mapRowToSummary, accountId, accountId, limit);
+    return findMany(conn, sql, this::mapRowToSummary, accountId, accountId, accountId, limit);
+  }
+
+  public Map<String, Integer> getPlatformStats() {
+    return withConnection(conn -> {
+      int views = findColumnMany(conn, "SELECT COUNT(*) FROM publication_view", Integer.class)
+          .stream().findFirst().orElse(0);
+      int likes = findColumnMany(conn, "SELECT COUNT(*) FROM publication_like", Integer.class)
+          .stream().findFirst().orElse(0);
+      Map<String, Integer> stats = new HashMap<>();
+      stats.put("views", views);
+      stats.put("likes", likes);
+      return stats;
+    });
   }
 
   public Map<Integer, Integer> getViewCounts(List<Integer> pubIds) {
@@ -253,6 +277,39 @@ public class InteractionRepository extends BaseRepository {
         .stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
+  public int countViewsByAccount(int accountId) {
+    return withConnection(conn ->
+        findOne(conn,
+            "SELECT COUNT(*) AS cnt FROM publication_view WHERE account_id = ?",
+            rs -> rs.getInt("cnt"),
+            accountId
+        ).orElse(0)
+    );
+  }
+
+  public int countLikesByAccount(int accountId) {
+    return withConnection(conn ->
+        findOne(conn,
+            "SELECT COUNT(*) AS cnt FROM publication_like WHERE account_id = ?",
+            rs -> rs.getInt("cnt"),
+            accountId
+        ).orElse(0)
+    );
+  }
+
+  public int countSavesByAccount(int accountId) {
+    String sql = """
+    SELECT COUNT(ci.pub_id) AS cnt
+    FROM collection c
+    LEFT JOIN collection_item ci ON ci.collection_id = c.collection_id
+    WHERE c.account_id = ? AND c.is_default = true
+    """;
+
+    return withConnection(conn ->
+        findOne(conn, sql, rs -> rs.getInt("cnt"), accountId).orElse(0)
+    );
+  }
+
   /**
    * Maps a row from a combined interaction query to a {@link InteractionSummary} object.
    *
@@ -261,12 +318,17 @@ public class InteractionRepository extends BaseRepository {
    * @throws SQLException if a database access error occurs.
    */
   private InteractionSummary mapRowToSummary(ResultSet rs) throws SQLException {
-    return new InteractionSummary(
-        rs.getInt("pub_id"),
-        InteractionSummary.PublicationInteractionType.valueOf(
-            rs.getString("interaction_type")
-        ),
-        rs.getObject("timestamp", LocalDateTime.class)
-    );
+    String typeStr = rs.getString("interaction_type");
+
+    try {
+      return new InteractionSummary(
+          rs.getInt("pub_id"),
+          rs.getString("title"),
+          InteractionSummary.PublicationInteractionType.valueOf(typeStr),
+          rs.getObject("timestamp", LocalDateTime.class)
+      );
+    } catch (IllegalArgumentException e) {
+      throw new DataAccessException("Unknown interaction_type: " + typeStr, e);
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.airchive.repository;
 
 
+import com.airchive.dto.PendingAuthorRequest;
 import com.airchive.entity.AuthorRequest;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.ValidationException;
@@ -22,37 +23,38 @@ public class AuthorRequestRepository extends BaseRepository {
    * Creates a new author request in the database.
    * This method manages its own database connection.
    *
-   * @param request The AuthorRequest object to persist.
+   * @param accountId the account id requesting
    * @return The created AuthorRequest, retrieved from the database.
    * @throws ValidationException if a request for this account already exists.
    */
-  public AuthorRequest create(AuthorRequest request) {
-    return withConnection(conn -> create(request, conn));
+  public AuthorRequest create(int accountId) {
+    return withConnection(conn -> create(accountId, conn));
   }
 
   /**
    * Creates a new author request using a provided database connection.
    *
-   * @param request The AuthorRequest object to persist.
+   * @param accountId The accountId requesting
    * @param conn The active database connection.
    * @return The created AuthorRequest, retrieved from the database.
    * @throws ValidationException if a request for this account already exists.
    * @throws EntityNotFoundException if the creation fails and the new request cannot be retrieved.
    */
-  public AuthorRequest create(AuthorRequest request, Connection conn) {
-    if (existsByAccountId(request.accountId(), conn)) {
+  public AuthorRequest create(int accountId, Connection conn) {
+    if (existsByAccountId(accountId, conn)) {
       throw new ValidationException("An author request for this account already exists.");
     }
 
-    executeInsertWithGeneratedKey(
+    int rows = executeUpdate(
         conn,
-        "INSERT INTO author_request (account_id, status, requested_at) VALUES (?, ?, NOW())",
-        request.accountId(),
-        request.status().name()
+        "INSERT INTO author_request (account_id) VALUES (?)",
+        accountId
     );
 
-    return findByAccountId(request.accountId(), conn)
-        .orElseThrow(() -> new EntityNotFoundException("Failed to retrieve created author request."));
+    if (rows == 0) { throw new EntityNotFoundException("Failed to create author request."); }
+
+    return findByAccountId(accountId, conn)
+        .orElseThrow(() -> new EntityNotFoundException("1 Failed to retrieve created author request."));
   }
 
   /**
@@ -84,24 +86,28 @@ public class AuthorRequestRepository extends BaseRepository {
    * @param pageSize The number of requests per page.
    * @return A {@link List} of pending AuthorRequests.
    */
-  public List<AuthorRequest> findAllPending(int page, int pageSize) {
+  public List<PendingAuthorRequest> findAllPending(int page, int pageSize) {
     return withConnection(conn -> findAllPending(page, pageSize, conn));
   }
 
   /**
-   * Retrieves a paginated list of all pending author requests using a provided connection.
+   * Retrieves a paginated list of all pending author requests with account details using a provided connection.
    *
    * @param page The page number (1-indexed).
    * @param pageSize The number of requests per page.
    * @param conn The active database connection.
-   * @return A {@link List} of pending AuthorRequests.
+   * @return A {@link List} of PendingAuthorRequest with account details.
    */
-  public List<AuthorRequest> findAllPending(int page, int pageSize, Connection conn) {
+  public List<PendingAuthorRequest> findAllPending(int page, int pageSize, Connection conn) {
     int offset = (page - 1) * pageSize;
     return findMany(
         conn,
-        "SELECT * FROM author_request WHERE status = 'PENDING' ORDER BY requested_at ASC LIMIT ? OFFSET ?",
-        this::mapRowToRequest,
+        "SELECT ar.account_id, a.email, ar.requested_at " +
+            "FROM author_request ar " +
+            "JOIN account a ON ar.account_id = a.account_id " +
+            "WHERE ar.status = 'PENDING' " +
+            "ORDER BY ar.requested_at DESC LIMIT ? OFFSET ?",
+        this::mapRowToPendingRequest,
         pageSize,
         offset
     );
@@ -219,6 +225,14 @@ public class AuthorRequestRepository extends BaseRepository {
     return new AuthorRequest(
         rs.getInt("account_id"),
         AuthorRequest.Status.valueOf(rs.getString("status")),
+        rs.getTimestamp("requested_at").toLocalDateTime()
+    );
+  }
+
+  private PendingAuthorRequest mapRowToPendingRequest(ResultSet rs) throws SQLException {
+    return new PendingAuthorRequest(
+        rs.getInt("account_id"),
+        rs.getString("email"),
         rs.getTimestamp("requested_at").toLocalDateTime()
     );
   }

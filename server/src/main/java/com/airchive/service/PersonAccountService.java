@@ -15,6 +15,7 @@ import com.airchive.util.PasswordUtils;
 import com.airchive.util.SecurityUtils;
 import com.airchive.util.ValidationUtils;
 import java.sql.Connection;
+import java.util.concurrent.CompletableFuture;
 
 public class PersonAccountService {
 
@@ -27,7 +28,8 @@ public class PersonAccountService {
       PersonRepository personRepository,
       AccountRepository accountRepository,
       CollectionRepository collectionRepository,
-      RecommendationRepository recommendationRepository) {
+      RecommendationRepository recommendationRepository)
+  {
     this.personRepository = personRepository;
     this.accountRepository = accountRepository;
     this.collectionRepository = collectionRepository;
@@ -120,9 +122,29 @@ public class PersonAccountService {
     }
   }
 
+  public void updateUserAffinitiesAsync(int accountId) {
+    CompletableFuture.runAsync(() -> {
+      try (Transaction tx = new Transaction()) {
+        tx.begin();
+        Connection conn = tx.getConnection();
+
+        recommendationRepository.updateFullAffinityScores(accountId, conn);
+
+        tx.commit();
+      } catch (Exception e) {
+        System.err.println("Future completed with exception: Could not update affinities for account " + accountId);
+        e.printStackTrace();
+      }
+    });
+  }
+
   public Account getAccountById(int accountId) {
     return accountRepository.findById(accountId)
         .orElseThrow(() -> new EntityNotFoundException("Account not found."));
+  }
+
+  public Person getPersonByEmail(String email) {
+    return personRepository.findByIdentityEmail(email).orElseThrow(() -> new EntityNotFoundException("Person not found."));
   }
 
   public Person getPersonById(int personId) {

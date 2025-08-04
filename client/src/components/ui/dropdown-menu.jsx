@@ -24,10 +24,13 @@ function DropdownMenuContent({ className, sideOffset = 4, ...props }) {
             data-slot="dropdown-menu-content"
             sideOffset={sideOffset}
             className={cn(
-                "z-50 min-w-[8rem] overflow-hidden rounded-md p-1",
-                "bg-popover/95 backdrop-blur-sm text-popover-foreground",
-                "border border-border/30 shadow-lg",
-                "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
+                "z-50 min-w-[8rem] overflow-hidden rounded-[var(--radius)] p-1",
+                "bg-[var(--color-popover)]/95 backdrop-blur-sm text-[var(--color-popover-foreground)]",
+                "border border-[var(--color-border)]/30 shadow-lg",
+                "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2",
+                "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+                "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
                 className
             )}
             {...props}
@@ -47,11 +50,12 @@ function DropdownMenuItem({ className, inset, variant = "default", ...props }) {
           data-inset={inset}
           data-variant={variant}
           className={cn(
-              "relative flex cursor-pointer items-center gap-2 select-none font-ui text-sm rounded-md px-2 py-2 transition-all duration-200",
-              "hover:bg-muted/60 hover:text-foreground focus:bg-muted/60 focus:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "relative flex cursor-pointer items-center gap-2 select-none font-ui text-sm rounded-[var(--radius)] px-2 py-2 transition-all duration-200",
+              "hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)]",
+              "focus:bg-[var(--color-muted)]/60 focus:text-[var(--color-foreground)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
               "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-              "data-[variant=destructive]:text-destructive data-[variant=destructive]:hover:bg-destructive/10 data-[variant=destructive]:hover:text-destructive",
+              "data-[variant=destructive]:text-[var(--color-destructive)] data-[variant=destructive]:hover:bg-[var(--color-destructive)]/10 data-[variant=destructive]:hover:text-[var(--color-destructive)]",
               "data-[inset]:pl-8",
               className
           )}
@@ -65,9 +69,10 @@ function DropdownMenuCheckboxItem({ className, children, checked, ...props }) {
       <DropdownMenuPrimitive.CheckboxItem
           data-slot="dropdown-menu-checkbox-item"
           className={cn(
-              "relative flex cursor-pointer items-center gap-2 select-none font-ui text-sm rounded-md py-2 pr-2 pl-8 transition-all duration-200",
-              "hover:bg-muted/60 hover:text-foreground focus:bg-muted/60 focus:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "relative flex cursor-pointer items-center gap-2 select-none font-ui text-sm rounded-[var(--radius)] py-2 pr-2 pl-8 transition-all duration-200",
+              "hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)]",
+              "focus:bg-[var(--color-muted)]/60 focus:text-[var(--color-foreground)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
               "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
               className
           )}
@@ -93,9 +98,10 @@ function DropdownMenuRadioItem({ className, children, ...props }) {
       <DropdownMenuPrimitive.RadioItem
           data-slot="dropdown-menu-radio-item"
           className={cn(
-              "relative flex cursor-pointer items-center gap-2 select-none font-ui text-sm rounded-md py-2 pr-2 pl-8 transition-all duration-200",
-              "hover:bg-muted/60 hover:text-foreground focus:bg-muted/60 focus:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "relative flex cursor-pointer items-center gap-2 select-none font-ui text-sm rounded-[var(--radius)] py-2 pr-2 pl-8 transition-all duration-200",
+              "hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)]",
+              "focus:bg-[var(--color-muted)]/60 focus:text-[var(--color-foreground)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
               "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
               className
           )}
@@ -116,7 +122,11 @@ function DropdownMenuLabel({ className, inset, ...props }) {
       <DropdownMenuPrimitive.Label
           data-slot="dropdown-menu-label"
           data-inset={inset}
-          className={cn("px-2 py-1.5 text-sm font-medium font-ui text-muted-foreground", "data-[inset]:pl-8", className)}
+          className={cn(
+              "px-2 py-1.5 text-sm font-medium font-ui text-[var(--color-muted-foreground)]",
+              "data-[inset]:pl-8",
+              className
+          )}
           {...props}
       />
   )
@@ -126,7 +136,7 @@ function DropdownMenuSeparator({ className, ...props }) {
   return (
       <DropdownMenuPrimitive.Separator
           data-slot="dropdown-menu-separator"
-          className={cn("bg-border/40 -mx-1 my-1 h-px", className)}
+          className={cn("bg-[var(--color-border)]/40 -mx-1 my-1 h-px", className)}
           {...props}
       />
   )
@@ -136,7 +146,7 @@ function DropdownMenuShortcut({ className, ...props }) {
   return (
       <span
           data-slot="dropdown-menu-shortcut"
-          className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
+          className={cn("ml-auto text-xs tracking-widest text-[var(--color-muted-foreground)]", className)}
           {...props}
       />
   )
@@ -152,10 +162,11 @@ function DropdownMenuSubTrigger({ className, inset, children, ...props }) {
           data-slot="dropdown-menu-sub-trigger"
           data-inset={inset}
           className={cn(
-              "flex cursor-pointer items-center select-none font-ui text-sm rounded-md px-2 py-2 transition-all duration-200",
-              "hover:bg-muted/60 hover:text-foreground focus:bg-muted/60 focus:text-foreground",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              "data-[state=open]:bg-muted/80 data-[state=open]:text-foreground",
+              "flex cursor-pointer items-center select-none font-ui text-sm rounded-[var(--radius)] px-2 py-2 transition-all duration-200",
+              "hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)]",
+              "focus:bg-[var(--color-muted)]/60 focus:text-[var(--color-foreground)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
+              "data-[state=open]:bg-[var(--color-muted)]/80 data-[state=open]:text-[var(--color-foreground)]",
               "data-[inset]:pl-8",
               className
           )}
@@ -172,7 +183,7 @@ function DropdownMenuSubContent({ className, ...props }) {
       <DropdownMenuPrimitive.SubContent
           data-slot="dropdown-menu-sub-content"
           className={cn(
-              "z-50 min-w-[8rem] overflow-hidden rounded-md border border-border/30 bg-popover/95 backdrop-blur-sm text-popover-foreground p-1 shadow-lg",
+              "z-50 min-w-[8rem] overflow-hidden rounded-[var(--radius)] border border-[var(--color-border)]/30 bg-[var(--color-popover)]/95 backdrop-blur-sm text-[var(--color-popover-foreground)] p-1 shadow-lg",
               "data-[state=open]:animate-in data-[state=closed]:animate-out",
               "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
               "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",

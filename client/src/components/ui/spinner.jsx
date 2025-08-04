@@ -7,7 +7,11 @@ export default function Spinner({ size = "md" }) {
 
   return (
       <div
-          className={`${sizes[size]} border-[--color-secondary] border-t-[--color-primary] rounded-full animate-spin`}
+          className={`${sizes[size]} rounded-full animate-spin`}
+          style={{
+            borderColor: "var(--color-secondary)",
+            borderTopColor: "var(--color-primary)",
+          }}
       />
   )
 }

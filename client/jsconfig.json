@@ -4,6 +4,7 @@
 
   ],
   "compilerOptions": {
+    "checkJs": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

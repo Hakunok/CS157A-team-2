@@ -7,7 +7,7 @@ function Avatar({ className, ...props }) {
       <AvatarPrimitive.Root
           data-slot="avatar"
           className={cn(
-              "relative flex size-8 shrink-0 overflow-hidden rounded-[var(--radius)] bg-muted text-muted-foreground font-ui text-sm font-medium",
+              "relative flex size-8 shrink-0 overflow-hidden rounded-[var(--radius)] bg-[var(--color-muted)] text-[var(--color-muted-foreground)] font-ui text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2",
               className
           )}
           {...props}
@@ -33,8 +33,8 @@ function AvatarFallback({ firstName, lastName, className, ...props }) {
           data-slot="avatar-fallback"
           delayMs={300}
           className={cn(
-              "flex size-full items-center justify-center rounded-[var(--radius)] bg-muted text-muted-foreground font-ui text-sm font-medium",
-              className
+              "flex size-full items-center justify-center rounded-[var(--radius)] bg-[var(--color-muted)] text-[var(--color-muted-foreground)] font-ui font-medium leading-none",
+              className ?? "text-sm"
           )}
           {...props}
       >

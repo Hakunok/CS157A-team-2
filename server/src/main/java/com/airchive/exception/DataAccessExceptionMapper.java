@@ -10,11 +10,11 @@ import javax.ws.rs.ext.Provider;
  * Maps {@link Exception} to a {@code 500 Internal Server Error} HTTP response.
  */
 @Provider
-public class GenericExceptionMapper implements ExceptionMapper<Exception> {
+public class DataAccessExceptionMapper implements ExceptionMapper<DataAccessException> {
   @Override
-  public Response toResponse(Exception ex) {
+  public Response toResponse(DataAccessException ex) {
     return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-        .entity(ErrorResponse.of("An unexpected error occurred."))
+        .entity(ErrorResponse.of(ex.getMessage()))
         .build();
   }
 }

@@ -9,7 +9,10 @@ function NavigationMenu({ className, children, viewport = true, ...props }) {
       <NavigationMenuPrimitive.Root
           data-slot="navigation-menu"
           data-viewport={viewport}
-          className={cn("group/navigation-menu relative flex max-w-max flex-1 items-center justify-center", className)}
+          className={cn(
+              "group/navigation-menu relative flex max-w-max flex-1 items-center justify-center",
+              className
+          )}
           {...props}
       >
         {children}
@@ -39,12 +42,17 @@ function NavigationMenuItem({ className, ...props }) {
 }
 
 const navigationMenuTriggerStyle = cva(
-    "group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-3 py-2 text-sm font-medium font-ui transition-all duration-200 ease-in-out",
+    "group inline-flex h-9 w-max items-center justify-center rounded-[var(--radius)] px-3 py-2 text-sm font-medium font-ui transition-all duration-200 ease-in-out",
     {
       variants: {
         intent: {
-          default: "text-foreground hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:bg-muted/80 data-[state=open]:text-foreground",
-          active: "bg-muted/80 text-foreground",
+          default: [
+            "text-[var(--color-foreground)]",
+            "hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)]",
+            "data-[state=open]:bg-[var(--color-muted)]/80 data-[state=open]:text-[var(--color-foreground)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] ring-offset-background focus-visible:ring-offset-2"
+          ].join(" "),
+          active: "bg-[var(--color-muted)]/80 text-[var(--color-foreground)]"
         },
       },
       defaultVariants: {
@@ -74,11 +82,12 @@ function NavigationMenuContent({ className, ...props }) {
       <NavigationMenuPrimitive.Content
           data-slot="navigation-menu-content"
           className={cn(
-              "z-50 w-full p-2 md:absolute md:w-auto",
+              "z-50 w-full p-2 md:absolute md:w-auto overflow-hidden",
+              "bg-[var(--color-popover)]/95 text-[var(--color-popover-foreground)] backdrop-blur-sm",
+              "border border-[var(--color-border)]/30 rounded-[var(--radius)] shadow-lg",
               "data-[motion^=from-]:animate-in data-[motion^=to-]:animate-out",
               "data-[motion=from-end]:slide-in-from-right-52 data-[motion=from-start]:slide-in-from-left-52",
               "data-[motion=to-end]:slide-out-to-right-52 data-[motion=to-start]:slide-out-to-left-52",
-              "bg-popover/95 backdrop-blur-sm text-popover-foreground border border-border/30 rounded-md shadow-lg overflow-hidden duration-200",
               className
           )}
           {...props}
@@ -92,7 +101,10 @@ function NavigationMenuViewport({ className, ...props }) {
         <NavigationMenuPrimitive.Viewport
             data-slot="navigation-menu-viewport"
             className={cn(
-                "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full md:w-[var(--radix-navigation-menu-viewport-width)] overflow-hidden rounded-md border border-border/30 bg-popover/95 backdrop-blur-sm text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
+                "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full md:w-[var(--radix-navigation-menu-viewport-width)] overflow-hidden",
+                "rounded-[var(--radius)] border border-[var(--color-border)]/30 bg-[var(--color-popover)]/95 text-[var(--color-popover-foreground)] backdrop-blur-sm shadow-lg",
+                "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
                 className
             )}
             {...props}
@@ -106,8 +118,10 @@ function NavigationMenuLink({ className, ...props }) {
       <NavigationMenuPrimitive.Link
           data-slot="navigation-menu-link"
           className={cn(
-              "flex items-center rounded-md p-2 text-sm font-ui font-medium text-popover-foreground transition-all duration-200 outline-none",
-              "hover:bg-muted/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+              "flex items-center rounded-[var(--radius)] p-2 text-sm font-ui font-medium",
+              "text-[var(--color-popover-foreground)] transition-all duration-200 outline-none",
+              "hover:bg-[var(--color-muted)]/50 hover:text-[var(--color-foreground)]",
+              "focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] ring-offset-background focus-visible:ring-offset-2",
               className
           )}
           {...props}
@@ -125,7 +139,7 @@ function NavigationMenuIndicator({ className, ...props }) {
           )}
           {...props}
       >
-        <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-border/50 shadow-md" />
+        <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-[var(--color-border)]/50 shadow-md" />
       </NavigationMenuPrimitive.Indicator>
   )
 }

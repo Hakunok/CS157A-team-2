@@ -44,7 +44,8 @@ public class AppBootstrap implements ServletContextListener {
     var personAccountService = new PersonAccountService(
         personRepository,
         accountRepository,
-        collectionRepository
+        collectionRepository,
+        recommendationRepository
     );
 
     var authorRequestService = new AuthorRequestService(
@@ -73,12 +74,18 @@ public class AppBootstrap implements ServletContextListener {
         recommendationRepository
     );
 
+    var interactionService = new InteractionService(
+        interactionRepository,
+        publicationRepository
+    );
+
     // Register services in servlet context
     ctx.setAttribute("personAccountService", personAccountService);
     ctx.setAttribute("authorRequestService", authorRequestService);
     ctx.setAttribute("topicService", topicService);
     ctx.setAttribute("publicationService", publicationService);
     ctx.setAttribute("collectionService", collectionService);
+    ctx.setAttribute("interactionService", interactionService);
   }
 
   /**

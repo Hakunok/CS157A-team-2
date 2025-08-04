@@ -48,7 +48,9 @@ function DialogContent({ className, children, showCloseButton = true, ...props }
                 // Size
                 "w-full max-w-[calc(100%-2rem)] sm:max-w-lg",
                 // Layout + Styling
-                "grid gap-4 rounded-[var(--radius)] border border-[--border] bg-[--popover] p-6 shadow-lg font-ui text-sm",
+                "grid gap-4 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-popover)] p-6 shadow-lg font-ui text-sm",
+                // Focus Ring
+                "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2",
                 // Animations
                 "data-[state=open]:animate-in data-[state=closed]:animate-out",
                 "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
@@ -61,7 +63,7 @@ function DialogContent({ className, children, showCloseButton = true, ...props }
           {showCloseButton && (
               <DialogPrimitive.Close
                   data-slot="dialog-close"
-                  className="absolute top-4 right-4 rounded-[calc(var(--radius)-2px)] p-1 text-muted-foreground transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[--ring] focus-visible:ring-offset-2 disabled:pointer-events-none"
+                  className="absolute top-4 right-4 rounded-[calc(var(--radius)-2px)] p-1 text-[var(--color-muted-foreground)] transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 disabled:pointer-events-none"
               >
                 <XIcon className="size-4" />
                 <span className="sr-only">Close</span>
@@ -96,7 +98,7 @@ function DialogTitle({ className, ...props }) {
   return (
       <DialogPrimitive.Title
           data-slot="dialog-title"
-          className={cn("text-lg font-semibold font-ui", className)}
+          className={cn("text-lg font-semibold font-ui text-[var(--color-foreground)]", className)}
           {...props}
       />
   )
@@ -106,7 +108,7 @@ function DialogDescription({ className, ...props }) {
   return (
       <DialogPrimitive.Description
           data-slot="dialog-description"
-          className={cn("text-muted-foreground text-sm font-content", className)}
+          className={cn("text-[var(--color-muted-foreground)] text-sm font-content", className)}
           {...props}
       />
   )

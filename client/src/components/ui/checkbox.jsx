@@ -9,19 +9,19 @@ function Checkbox({ className, ...props }) {
           data-slot="checkbox"
           className={cn(
               // Size and structure
-              "size-4 shrink-0 rounded-[var(--radius)] border border-[--border] shadow-sm",
+              "size-4 shrink-0 rounded-[var(--radius)] border border-[var(--color-border)] shadow-sm",
 
               // Unchecked background
-              "bg-input text-foreground",
+              "bg-[var(--color-input)] text-[var(--color-foreground)]",
 
               // Checked state
-              "data-[state=checked]:bg-[--primary] data-[state=checked]:text-[--primary-foreground] data-[state=checked]:border-[--primary]",
+              "data-[state=checked]:bg-[var(--color-primary)] data-[state=checked]:text-[var(--color-primary-foreground)] data-[state=checked]:border-[var(--color-primary)]",
 
               // Focus ring
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-[--ring]",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 ring-offset-background",
 
               // Validation state
-              "aria-invalid:border-[--destructive] aria-invalid:ring-[--destructive]/30",
+              "aria-invalid:border-[var(--color-destructive)] aria-invalid:ring-[var(--color-destructive)]/30",
 
               // Disabled state
               "disabled:cursor-not-allowed disabled:opacity-50",

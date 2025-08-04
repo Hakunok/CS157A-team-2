@@ -1,6 +1,11 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { Controller, FormProvider, useFormContext, useFormState } from "react-hook-form"
+import {
+  Controller,
+  FormProvider,
+  useFormContext,
+  useFormState,
+} from "react-hook-form"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 
@@ -65,7 +70,7 @@ function FormLabel({ className, ...props }) {
           data-error={!!error}
           className={cn(
               "text-sm font-ui font-normal transition-colors",
-              "data-[error=true]:text-destructive",
+              "data-[error=true]:text-[var(--color-destructive)]",
               className
           )}
           {...props}
@@ -85,8 +90,9 @@ function FormControl({ ...props }) {
           }
           aria-invalid={!!error}
           className={cn(
-              "focus-visible:ring-[--ring]",
-              "aria-invalid:ring-destructive/30 aria-invalid:border-destructive",
+              // Theme tokens applied here
+              "focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 ring-offset-background",
+              "aria-invalid:ring-[var(--color-destructive)]/30 aria-invalid:border-[var(--color-destructive)]",
               props.className
           )}
           {...props}
@@ -102,7 +108,7 @@ function FormDescription({ className, ...props }) {
           data-slot="form-description"
           id={formDescriptionId}
           className={cn(
-              "text-muted-foreground text-sm font-content leading-normal",
+              "text-[var(--color-muted-foreground)] text-sm font-content leading-normal",
               className
           )}
           {...props}
@@ -121,7 +127,7 @@ function FormMessage({ className, ...props }) {
           data-slot="form-message"
           id={formMessageId}
           className={cn(
-              "text-destructive text-sm font-ui font-normal leading-normal",
+              "text-[var(--color-destructive)] text-sm font-ui font-normal leading-normal",
               className
           )}
           {...props}

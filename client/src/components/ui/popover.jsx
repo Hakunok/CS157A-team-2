@@ -24,8 +24,8 @@ function PopoverContent({
             sideOffset={sideOffset}
             className={cn(
                 // Core styles
-                "z-50 w-72 p-4 font-ui text-sm rounded-[var(--radius)] shadow-md border border-[--border]",
-                "bg-[--popover] text-[--popover-foreground]",
+                "z-50 w-72 p-4 font-ui text-sm rounded-[var(--radius)] shadow-md",
+                "border border-[var(--color-border)] bg-[var(--color-popover)] text-[var(--color-popover-foreground)]",
 
                 // Animation
                 "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -37,7 +37,7 @@ function PopoverContent({
                 "data-[side=top]:slide-in-from-bottom-2",
 
                 // Clean visual
-                "outline-none",
+                "outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2",
 
                 className
             )}

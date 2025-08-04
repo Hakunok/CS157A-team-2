@@ -2,6 +2,7 @@ package com.airchive.util;
 
 import com.airchive.dto.SessionUser;
 import com.airchive.entity.Account;
+import com.airchive.exception.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.ForbiddenException;
@@ -34,10 +35,13 @@ public class SecurityUtils {
    */
   public static SessionUser getSessionUserOrThrow(HttpServletRequest request) {
     HttpSession session = request.getSession(false);
-    if (session == null) throw new NotAuthorizedException("Login required.");
+    SessionUser user = (session != null)
+        ? (SessionUser) session.getAttribute("user")
+        : null;
 
-    SessionUser user = (SessionUser) session.getAttribute("user");
-    if (user == null) throw new NotAuthorizedException("Login required.");
+    if (user == null) {
+      throw new AuthenticationException("You are not logged in.");
+    }
 
     return user;
   }
@@ -64,7 +68,7 @@ public class SecurityUtils {
    */
   public static void requireAdmin(SessionUser user) {
     if (user == null || !user.isAdmin()) {
-      throw new ForbiddenException("Admin privileges required.");
+      throw new AuthenticationException("Admin privileges required.");
     }
   }
 
@@ -76,7 +80,7 @@ public class SecurityUtils {
    */
   public static void requireAuthor(SessionUser user) {
     if (user == null || !user.role().equals(Account.Role.AUTHOR)) {
-      throw new ForbiddenException("Author privileges required.");
+      throw new AuthenticationException("Author privileges required.");
     }
   }
 
@@ -88,7 +92,7 @@ public class SecurityUtils {
    */
   public static void requireReader(SessionUser user) {
     if (user == null || !user.role().equals(Account.Role.READER)) {
-      throw new ForbiddenException("Reader privileges required.");
+      throw new AuthenticationException("Reader privileges required.");
     }
   }
 }

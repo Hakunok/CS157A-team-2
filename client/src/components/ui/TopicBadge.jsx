@@ -2,47 +2,51 @@ import * as React from "react"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import * as Tooltip from "@radix-ui/react-tooltip"
+import { cn } from "@/lib/utils"
 
 export function TopicBadge({
   topic,
   onRemove,
-  removable = false,
+  isSelected = false,
   variant = "default",
   onClick
 }) {
-  const isTruncated = topic.fullName.length > 20
+  const isTruncated = topic.fullName.length > 15
   const content = isTruncated ? topic.code : topic.fullName
-  const showRemoveButton = removable || variant === "removable"
+  const showRemoveButton = (variant === "removable") && !isSelected
 
-  // Define variant styles
-  const getVariantStyles = () => {
-    switch (variant) {
-      case "removable":
-        return "bg-[var(--secondary-500)]/10 text-[var(--secondary-400)] border border-[var(--secondary-500)]/20 gap-1"
-      case "default":
-      default:
-        return "bg-[var(--secondary-500)]/10 text-[var(--secondary-400)] border border-[var(--secondary-500)]/20 gap-1"
-    }
+  const baseStyles = "transition-colors duration-200"
+  const selectedStyles = "bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20 hover:bg-[var(--color-primary)]/20"
+  const defaultStyles = "bg-[var(--secondary-500)]/10 text-[var(--secondary-400)] border border-[var(--secondary-500)]/20 hover:bg-[var(--secondary-500)]/20"
+  const removableStyles = `${defaultStyles} gap-1`
+
+  const badgeClass = cn(
+      getVariantStyles(),
+      isTruncated ? "cursor-help" : "",
+      "inline-flex items-center"
+  )
+
+  function getVariantStyles() {
+    if (isSelected) return cn(baseStyles, selectedStyles)
+    return variant === "removable" ? cn(baseStyles, removableStyles) : cn(baseStyles, defaultStyles)
   }
 
-  const BadgeContent = ({ children, className }) => (
+  const handleRemove = (e) => {
+    e.stopPropagation()
+    onRemove?.(topic.topicId)
+  }
+
+  const badgeContent = (
       <Badge
-          className={className}
           onClick={onClick}
-          style={{ cursor: onClick ? 'pointer' : 'default' }}
+          className={badgeClass}
+          style={{ cursor: onClick ? "pointer" : "default" }}
       >
-        {children}
+        {content}
         {showRemoveButton && (
             <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onRemove?.(topic.topicId)
-                }}
-                className={
-                  variant === "removable"
-                      ? "ml-1 hover:bg-[var(--secondary-500)]/20 rounded-full p-0.5"
-                      : "ml-1 hover:bg-[var(--secondary-500)]/20 rounded-full p-0.5"
-                }
+                onClick={handleRemove}
+                className="ml-1 hover:bg-[var(--secondary-500)]/20 rounded-full p-0.5"
             >
               <X className="w-3 h-3" />
             </button>
@@ -50,21 +54,13 @@ export function TopicBadge({
       </Badge>
   )
 
-  if (!isTruncated && !showRemoveButton) {
-    return (
-        <BadgeContent className={getVariantStyles()}>
-          {content}
-        </BadgeContent>
-    )
-  }
+  if (!isTruncated) return badgeContent
 
   return (
       <Tooltip.Provider>
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
-            <BadgeContent className={`${getVariantStyles()} ${isTruncated ? 'cursor-help' : ''}`}>
-              {content}
-            </BadgeContent>
+            {badgeContent}
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content

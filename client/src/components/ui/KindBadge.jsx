@@ -1,20 +1,26 @@
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 export function KindBadge({ kind }) {
-  let className = ""
+  let variantClass = ""
+  const baseClass = "transition-colors cursor-default"
+
   switch (kind) {
     case "PAPER":
-      className = "bg-blue-500/10 text-blue-600 border border-blue-500/20"
+      variantClass = "bg-blue-500/10 text-blue-600 border border-blue-500/20 hover:bg-blue-500/20"
       break
     case "BLOG":
-      className = "bg-green-500/10 text-green-600 border border-green-500/20"
+      variantClass = "bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20"
       break
     case "ARTICLE":
-      className = "bg-purple-500/10 text-purple-600 border border-purple-500/20"
+      variantClass = "bg-purple-500/10 text-purple-600 border border-purple-500/20 hover:bg-purple-500/20"
+      break
+    case "COLLECTION":
+      variantClass = "bg-teal-500/10 text-teal-600 border border-teal-500/20 hover:bg-teal-500/20"
       break
     default:
-      className = "bg-gray-500/10 text-gray-600 border border-gray-500/20"
+      variantClass = "bg-gray-500/10 text-gray-600 border border-gray-500/20 hover:bg-gray-500/20"
   }
 
-  return <Badge className={className}>{kind}</Badge>
+  return <Badge className={cn(baseClass, variantClass)}>{kind}</Badge>
 }

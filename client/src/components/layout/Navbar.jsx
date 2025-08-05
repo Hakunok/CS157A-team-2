@@ -18,14 +18,37 @@ import {
 } from "@/components/ui/dropdown-menu.jsx"
 import { Button } from "@/components/ui/button.jsx"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar.jsx"
-import { CommandDialog, CommandInput } from "@/components/ui/command"
 import { useAuth } from "@/context/AuthContext"
+import { publicationApi } from "@/lib/api"
+import { BookIcon, FileTextIcon, NewspaperIcon } from "lucide-react"
+import debounce from "lodash.debounce"
+import {SearchCommand} from "@/components/ui/SearchCommand.jsx";
 
 export default function Navbar() {
   const { user, logout, isAuthor, isReader, isAdmin } = useAuth()
   const navigate = useNavigate()
-  const [openSearch, setOpenSearch] = React.useState(false)
   const isLoggedIn = !!user
+
+  const [openSearch, setOpenSearch] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [results, setResults] = React.useState([])
+  const [isLoading, setIsLoading] = React.useState(false)
+
+  const performSearch = React.useCallback(
+      debounce((query) => {
+        if (query.trim().length >= 2) {
+          setIsLoading(true)
+          publicationApi
+          .search(query.trim())
+          .then((res) => setResults(res))
+          .catch(() => setResults([]))
+          .finally(() => setIsLoading(false))
+        } else {
+          setResults([])
+        }
+      }, 300),
+      []
+  )
 
   React.useEffect(() => {
     const handleKeyDown = (e) => {
@@ -37,6 +60,23 @@ export default function Navbar() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  React.useEffect(() => {
+    performSearch(searchQuery)
+  }, [searchQuery, performSearch])
+
+  // Helper function to get the appropriate icon for publication kind
+  const getPublicationIcon = (kind) => {
+    switch (kind?.toLowerCase()) {
+      case 'paper':
+        return <FileTextIcon className="size-4" />
+      case 'blog':
+      case 'article':
+        return <NewspaperIcon className="size-4" />
+      default:
+        return <BookIcon className="size-4" />
+    }
+  }
 
   return (
       <>
@@ -53,69 +93,38 @@ export default function Navbar() {
 
           {/* Center: Search Bar */}
           <div className="flex-1 max-w-md mx-8">
-            <button
-                onClick={() => setOpenSearch(true)}
-                className="w-full h-9 px-3 py-2 text-left text-sm text-[var(--color-muted-foreground)] bg-[var(--color-muted)]/30 border border-[var(--color-border)]/50 rounded-[var(--radius)] hover:bg-[var(--color-muted)]/50 hover:border-[var(--color-border)] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-background focus-visible:ring-offset-2"
-            >
-              <div className="flex items-center gap-2">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <span>Search publications...</span>
-                <div className="ml-auto">
-                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded-[var(--radius-sm)] border bg-[var(--color-muted)] px-1.5 font-mono text-[10px] font-medium text-[var(--color-muted-foreground)] opacity-100">
-                    <span className="text-xs">⌘</span>K
-                  </kbd>
-                </div>
-              </div>
-            </button>
+            <SearchCommand />
           </div>
+
 
           {/* Right: Navigation + Auth Menu */}
           <div className="flex items-center gap-4">
-            {/* Publications + Collections */}
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="h-9 px-3 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)] data-[state=open]:bg-[var(--color-muted)]/80 data-[state=open]:text-[var(--color-foreground)] transition-all duration-200">
+                  <NavigationMenuTrigger
+                      onClick={() => navigate('/publications')}
+                      className="h-9 px-3 text-sm font-medium text-[var(--color-foreground)]
+                      hover:bg-[var(--color-muted)]/60 hover:text-[var(--color-foreground)]
+                      data-[state=open]:bg-[var(--color-muted)]/80
+                      data-[state=open]:text-[var(--color-foreground)] transition-all duration-200 cursor-pointer"
+                  >
                     Publications
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="flex flex-col p-2 min-w-[180px] bg-[var(--color-popover)]/95 backdrop-blur-sm">
                       <NavigationMenuLink asChild>
-                        <Link to="/papers" className="nav-subitem">
-                          Papers
-                        </Link>
+                        <Link to="/papers" className="nav-subitem">Papers</Link>
                       </NavigationMenuLink>
                       <NavigationMenuLink asChild>
-                        <Link to="/articles" className="nav-subitem">
-                          Articles
-                        </Link>
-                      </NavigationMenuLink>
-                      <NavigationMenuLink asChild>
-                        <Link to="/blogs" className="nav-subitem">
-                          Blogs
-                        </Link>
+                        <Link to="/blogs" className="nav-subitem">Blogs & Articles</Link>
                       </NavigationMenuLink>
                     </div>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
-
                 <NavigationMenuItem>
                   <NavigationMenuLink asChild>
-                    <Link to="/collections" className="nav-item">
-                      Collections
-                    </Link>
+                    <Link to="/collections" className="nav-item">Collections</Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               </NavigationMenuList>
@@ -146,35 +155,23 @@ export default function Navbar() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem asChild>
-                      <Link to="/profile" className="cursor-pointer">
-                        My Profile
-                      </Link>
+                      <Link to="/profile" className="cursor-pointer">My Profile</Link>
                     </DropdownMenuItem>
-
                     {isAuthor && (
                         <DropdownMenuItem asChild>
-                          <Link to="/my-publications" className="cursor-pointer">
-                            My Publications
-                          </Link>
+                          <Link to="/my-publications" className="cursor-pointer">My Publications</Link>
                         </DropdownMenuItem>
                     )}
-
                     {(isReader || isAuthor) && (
                         <DropdownMenuItem asChild>
-                          <Link to="/my-collections" className="cursor-pointer">
-                            My Collections
-                          </Link>
+                          <Link to="/my-collections" className="cursor-pointer">My Collections</Link>
                         </DropdownMenuItem>
                     )}
-
                     {isAdmin && (
                         <DropdownMenuItem asChild>
-                          <Link to="/admin" className="cursor-pointer">
-                            My Administration
-                          </Link>
+                          <Link to="/admin" className="cursor-pointer">My Administration</Link>
                         </DropdownMenuItem>
                     )}
-
                     <DropdownMenuItem
                         onSelect={logout}
                         className="text-[var(--color-destructive)] hover:bg-[var(--color-destructive)]/10 hover:text-[var(--color-destructive)] cursor-pointer"
@@ -186,11 +183,6 @@ export default function Navbar() {
             )}
           </div>
         </nav>
-
-        {/* Command Palette */}
-        <CommandDialog open={openSearch} onOpenChange={setOpenSearch}>
-          <CommandInput placeholder="Search publications by title" />
-        </CommandDialog>
       </>
   )
 }

@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
  */
 public record InteractionSummary(
     int pubId,
+    String title,
     PublicationInteractionType type,
     LocalDateTime interacted_at) {
 
@@ -22,9 +23,10 @@ public record InteractionSummary(
    * <ul>
    *   <li>{@code LIKE} - the user liked the publication</li>
    *   <li>{@code VIEW} - the user viewed the publication</li>
+   *   <li>{@code SAVE} - the user saved the publication</li>
    * </ul>
    */
   public enum PublicationInteractionType {
-    LIKE, VIEW
+    LIKE, VIEW, SAVE
   }
 }

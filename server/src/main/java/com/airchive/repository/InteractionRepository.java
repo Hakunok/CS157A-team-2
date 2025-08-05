@@ -214,21 +214,27 @@ public class InteractionRepository extends BaseRepository {
    */
   public List<InteractionSummary> findRecentInteractionsByAccount(int accountId, int limit, Connection conn) {
     String sql = """
-    (SELECT v.pub_id, p.title, 'VIEW' AS interaction_type, v.viewed_at AS timestamp
-     FROM publication_view v
-     JOIN publication p ON v.pub_id = p.id
-     WHERE v.account_id = ?)
-    UNION ALL
-    (SELECT l.pub_id, p.title, 'LIKE' AS interaction_type, l.liked_at AS timestamp
-     FROM publication_like l
-     JOIN publication p ON l.pub_id = p.id
-     WHERE l.account_id = ?)
-    UNION ALL
-    (SELECT ci.pub_id, p.title, 'SAVE' AS interaction_type, ci.added_at AS timestamp
-     FROM collection_item ci
-     JOIN collection c ON ci.collection_id = c.id
-     JOIN publication p ON ci.pub_id = p.id
-     WHERE c.account_id = ? AND c.is_default = true)
+    SELECT * FROM (
+        (SELECT v.pub_id, p.title, 'VIEW' AS interaction_type, v.viewed_at AS timestamp
+         FROM publication_view v
+         JOIN publication p ON v.pub_id = p.pub_id
+         WHERE v.account_id = ?)
+    
+        UNION ALL
+    
+        (SELECT l.pub_id, p.title, 'LIKE' AS interaction_type, l.liked_at AS timestamp
+         FROM publication_like l
+         JOIN publication p ON l.pub_id = p.pub_id
+         WHERE l.account_id = ?)
+    
+        UNION ALL
+    
+        (SELECT ci.pub_id, p.title, 'SAVE' AS interaction_type, ci.added_at AS timestamp
+         FROM collection_item ci
+         JOIN collection c ON ci.collection_id = c.collection_id
+         JOIN publication p ON ci.pub_id = p.pub_id
+         WHERE c.account_id = ? AND c.is_default = true)
+    ) AS recent_interactions
     ORDER BY timestamp DESC
     LIMIT ?
     """;

@@ -11,18 +11,14 @@ export default function PublicationExplorePage({ kinds }) {
   const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [hasMore, setHasMore] = React.useState(true);
-
   const [allTopics, setAllTopics] = React.useState([]);
   const [selectedTopicIds, setSelectedTopicIds] = React.useState(new Set());
-
   const [showFilters, setShowFilters] = React.useState(false);
   const [showContent, setShowContent] = React.useState(false);
-
   const selectedTopicsKey = React.useMemo(
       () => Array.from(selectedTopicIds).sort().join(","),
       [selectedTopicIds]
   );
-
   const isAll = !kinds || kinds.length === 0;
   const isOnlyPapers = kinds?.length === 1 && kinds[0] === "PAPER";
   const pageTitle = isAll ? "All Publications" : isOnlyPapers ? "Papers" : "Blogs & Articles";

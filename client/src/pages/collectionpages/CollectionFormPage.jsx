@@ -13,16 +13,13 @@ export default function CollectionFormPage() {
   const navigate = useNavigate();
   const { collectionId } = useParams();
   const isEditing = !!collectionId;
-
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [showContent, setShowContent] = useState(!isEditing);
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [publications, setPublications] = useState([]);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 

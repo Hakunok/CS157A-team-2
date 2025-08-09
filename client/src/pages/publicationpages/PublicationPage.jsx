@@ -40,7 +40,6 @@ const TooltipContent = React.forwardRef(({ children, ...props }, ref) => (
 export default function PublicationPage() {
   const { pubId } = useParams();
   const { isAuthenticated } = useAuth();
-
   const [loading, setLoading] = React.useState(true);
   const [publication, setPublication] = React.useState(null);
   const [liked, setLiked] = React.useState(false);
@@ -48,7 +47,6 @@ export default function PublicationPage() {
   const [isLiking, setIsLiking] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [showContent, setShowContent] = React.useState(false);
-
   const hasViewed = React.useRef(false);
   const contentRef = React.useRef(null);
 
@@ -141,19 +139,7 @@ export default function PublicationPage() {
   if (loading || !publication)
     return <LoadingOverlay message="Loading publication..." />;
 
-  const {
-    title,
-    content,
-    doi,
-    url,
-    kind,
-    publishedAt,
-    authors,
-    topics,
-    viewCount,
-    likeCount,
-  } = publication;
-
+  const { title, content, doi, url, kind, publishedAt, authors, topics, viewCount, likeCount } = publication;
   const publicationDate = formatDate(publishedAt);
 
   return (

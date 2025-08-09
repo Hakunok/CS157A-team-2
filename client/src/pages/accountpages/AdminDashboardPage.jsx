@@ -1,22 +1,10 @@
 import React from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/table.jsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/table.jsx";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/tabs.jsx";
 import { Button } from "@/components/button.jsx";
 import { Input } from "@/components/input.jsx";
 import { Label } from "@/components/label.jsx";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/dialog.jsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/dialog.jsx";
 import { Trash } from "lucide-react";
 import { authorRequestApi, topicApi } from "@/lib/api.js";
 import { toast } from "sonner";
@@ -31,12 +19,9 @@ export default function AdminDashboardPage() {
   const [showCreateDialog, setShowCreateDialog] = React.useState(false);
   const [newCode, setNewCode] = React.useState("");
   const [newName, setNewName] = React.useState("");
-
   const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
-
   const pageSize = 10;
-
   const loadRequests = async (pageToLoad = 1) => {
     try {
       const newRequests = await authorRequestApi.getPending(pageToLoad, pageSize);
@@ -53,7 +38,6 @@ export default function AdminDashboardPage() {
       setIsRefreshing(false);
     }
   };
-
   const loadTopics = async () => {
     try {
       const res = await topicApi.getAll();

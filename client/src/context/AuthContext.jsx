@@ -23,42 +23,27 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     const user = await authApi.login(credentials)
     setUser(user)
-
     userApi.recalculateAffinities().catch(err => {
       console.error("Affinity recalculation trigger failed:", err)
     })
-
     return user
   }
-
   const register = async (data) => {
     const user = await authApi.register(data)
     setUser(user)
     return user
   }
-
   const logout = async () => {
     await authApi.logout()
     setUser(null)
   }
-
   const isAuthenticated = !!user
   const isAdmin = user?.isAdmin || false
   const isAuthor = user?.role === "AUTHOR"
   const isReader = user?.role === "READER"
 
   return (
-      <AuthContext.Provider value={{
-        user,
-        isAuthenticated,
-        isAdmin,
-        isAuthor,
-        isReader,
-        login,
-        register,
-        logout,
-        loading
-      }}>
+      <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isAuthor, isReader, login, register, logout, loading }}>
         {children}
       </AuthContext.Provider>
   )

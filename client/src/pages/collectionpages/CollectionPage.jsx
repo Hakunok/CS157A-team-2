@@ -14,7 +14,6 @@ export default function CollectionPage() {
   const [loading, setLoading] = React.useState(true);
   const [collection, setCollection] = React.useState(null);
   const [showContent, setShowContent] = React.useState(false);
-
   const contentRef = React.useRef(null);
 
   React.useEffect(() => {

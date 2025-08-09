@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  BarChart2, FileText, Eye, Heart,
-  Users, BookOpen, Bookmark, ArrowRight
-} from "lucide-react"
-
+import { BarChart2, FileText, Eye, Heart, Users, BookOpen, Bookmark, ArrowRight } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { userApi, publicationApi } from "@/lib/api"
 import { Button } from "@/components/button.jsx"
@@ -13,11 +9,9 @@ import { cn } from "@/lib/utils"
 
 export default function HomePage() {
   const { user, loading } = useAuth()
-
   if (loading) {
     return null
   }
-
   return (
       <div className="min-h-screen mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-4 lg:gap-16">
@@ -25,7 +19,6 @@ export default function HomePage() {
             {!user ? <GuestHero /> : <WelcomeHero user={user} />}
             <FeaturedPublications user={user} />
           </main>
-
           <aside className="space-y-8">
             <PlatformStats />
             {user && (

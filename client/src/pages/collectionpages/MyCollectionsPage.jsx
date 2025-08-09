@@ -5,17 +5,7 @@ import { collectionApi } from "@/lib/api";
 import { CollectionCard } from "@/components/CollectionCard.jsx";
 import { Button } from "@/components/button.jsx";
 import { Plus, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/alert-dialog.jsx";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction } from "@/components/alert-dialog.jsx";
 import { cn } from "@/lib/utils";
 
 export default function MyCollectionsPage() {

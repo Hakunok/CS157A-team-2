@@ -4,7 +4,6 @@ import qs from "qs"
 
 // Vite proxy for dev: localhost:8080/server_war_exploded/api
 const baseURL = "/api"
-
 const api = axios.create({
   baseURL,
   withCredentials: true,
@@ -32,8 +31,6 @@ export const authApi = {
   logout: () => api.post("/auth/logout"),
   refresh: () => api.get("/auth/me").then((res) => res.data),
 }
-
-
 // Users & Stats REST API
 // /api/users/*
 export const userApi = {
@@ -44,8 +41,6 @@ export const userApi = {
       api.get("/users/stats/platform").then((res) => res.data),
   recalculateAffinities: () => api.post("/users/me/affinities"),
 }
-
-
 // Author Request REST API
 // /api/author-requests/*
 export const authorRequestApi = {
@@ -54,12 +49,8 @@ export const authorRequestApi = {
       api.get("/author-requests/status").then((res) => res.data),
   getPending: (page = 1, pageSize = 20) =>
       api.get(`/author-requests/pending?page=${page}&pageSize=${pageSize}`).then((res) => res.data),
-  getPendingCount: () =>
-      api.get("/author-requests/pending/count").then((res) => res.data),
-  approve: (accountId) =>
-      api.post(`/author-requests/${accountId}/approve`),
+  approve: (accountId) => api.post(`/author-requests/${accountId}/approve`),
 }
-
 // Collections REST API
 // /api/collections/*
 export const collectionApi = {
@@ -70,29 +61,19 @@ export const collectionApi = {
   getRecommendations: ({ page = 1, pageSize = 10 } = {}) =>
       api.get(`/collections/recommendations?page=${page}&pageSize=${pageSize}`).then((res) => res.data),
   delete: (id) => api.delete(`/collections/${id}`),
-
   saveToDefault: (pubId) => api.post(`/collections/default/save/${pubId}`),
   removeFromDefault: (pubId) => api.delete(`/collections/default/save/${pubId}`),
   isSaved: (pubId) => api.get(`/collections/default/has/${pubId}`).then((res) => res.data),
-  listSaved: () => api.get("/collections/default/publications").then((res) => res.data),
-
-  addToCollection: (collectionId, pubId) =>
-      api.post(`/collections/${collectionId}/add/${pubId}`),
-
-  removeFromCollection: (collectionId, pubId) =>
-      api.delete(`/collections/${collectionId}/remove/${pubId}`),
+  addToCollection: (collectionId, pubId) => api.post(`/collections/${collectionId}/add/${pubId}`),
+  removeFromCollection: (collectionId, pubId) => api.delete(`/collections/${collectionId}/remove/${pubId}`),
 }
-
 // Topics REST API
 // /api/topics/*
 export const topicApi = {
   getAll: () => api.get("/topics").then((res) => res.data),
-  search: (query) => api.get(`/topics/search?q=${query}`).then((res) => res.data),
   create: (data) => api.post("/topics", data).then((res) => res.data),
-  update: (id, data) => api.put(`/topics/${id}`, data),
   delete: (id) => api.delete(`/topics/${id}`),
 }
-
 // Publications REST API
 // /api/publications/*
 export const publicationApi = {

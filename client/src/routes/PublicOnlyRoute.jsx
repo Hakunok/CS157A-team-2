@@ -4,10 +4,7 @@ import LoadingOverlay from "@/components/LoadingOverlay.jsx"
 
 export default function PublicOnlyRoute({ children }) {
   const { user, loading } = useAuth()
-
   if (loading) return <LoadingOverlay />
-
   if (user) return <Navigate to="/" replace />
-
   return children
 }

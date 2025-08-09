@@ -10,9 +10,7 @@ export default function CollectionExplorePage() {
   const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [hasMore, setHasMore] = React.useState(true);
-
   const [showContent, setShowContent] = React.useState(false);
-
   const pageTitle = "All Collections";
   const pageDescription = "Discover curated collections from across the community";
 

@@ -19,13 +19,11 @@ import { cn } from "@/lib/utils.js";
 export default function MyPublicationsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   const [tab, setTab] = React.useState("drafts");
   const [isInitialLoading, setIsInitialLoading] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [showKindDialog, setShowKindDialog] = React.useState(false);
   const [publications, setPublications] = React.useState({ drafts: [], published: [] });
-
   const fetchPublications = async () => {
     setIsRefreshing(true);
     try {
@@ -51,7 +49,6 @@ export default function MyPublicationsPage() {
   }, [tab]);
 
   if (!user) return null;
-
   return (
       <section className="min-h-screen bg-background py-16 px-6">
         <div className="max-w-5xl mx-auto space-y-12">

@@ -24,25 +24,19 @@ import { cn } from "@/lib/utils"
 export default function PublishDraftPage() {
   const { pubId } = useParams()
   const navigate = useNavigate()
-
   const [publication, setPublication] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [publishing, setPublishing] = React.useState(false)
-
   const [topics, setTopics] = React.useState([])
   const [selectedTopics, setSelectedTopics] = React.useState([])
   const [topicSearch, setTopicSearch] = React.useState("")
   const [filteredTopics, setFilteredTopics] = React.useState([])
-
   const [authorEmail, setAuthorEmail] = React.useState("")
   const [authors, setAuthors] = React.useState([])
-
   const [showCreateDialog, setShowCreateDialog] = React.useState(false)
   const [newAuthor, setNewAuthor] = React.useState({ email: "", firstName: "", lastName: "" })
-
   const [publishDate, setPublishDate] = React.useState(null)
   const [showCalendar, setShowCalendar] = React.useState(false)
-
   const [showContent, setShowContent] = React.useState(false)
 
   React.useEffect(() => {
@@ -176,7 +170,6 @@ export default function PublishDraftPage() {
   if (loading) {
     return <LoadingOverlay message="Loading publication..." />
   }
-
   if (!publication) {
     return null
   }

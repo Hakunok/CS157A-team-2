@@ -19,17 +19,14 @@ export default function DraftFormPage() {
   const navigate = useNavigate();
   const { pubId } = useParams();
   const isEditMode = Boolean(pubId);
-
   const kindFromQuery = useQueryParam("kind")?.toUpperCase();
   const [kind, setKind] = React.useState(kindFromQuery || "");
   const [title, setTitle] = React.useState("");
   const [doi, setDoi] = React.useState("");
   const [pdfUrl, setPdfUrl] = React.useState("");
   const [content, setContent] = React.useState("");
-
   const [isLoadingDraft, setIsLoadingDraft] = React.useState(isEditMode);
   const [showContent, setShowContent] = React.useState(!isEditMode);
-
   const isBlogLike = kind === "BLOG" || kind === "ARTICLE";
   const isPaper = kind === "PAPER";
 
@@ -74,14 +71,7 @@ export default function DraftFormPage() {
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
-
-    const draft = {
-      kind,
-      title,
-      content,
-      doi: isPaper ? doi : undefined,
-      url: isPaper ? pdfUrl : undefined,
-    };
+    const draft = { kind, title, content, doi: isPaper ? doi : undefined, url: isPaper ? pdfUrl : undefined };
 
     try {
       if (isEditMode) {

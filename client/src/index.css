@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -9,12 +8,10 @@
   --font-ui: "Inter", system-ui, -apple-system, sans-serif;
   --font-content: "Source Serif 4", "EB Garamond", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
-
   --display-weight: 600;
   --text-weight: 450;
   --medium-weight: 550;
   --bold-weight: 700;
-
   --base-1000: oklch(0.08 0.003 250);
   --base-950: oklch(0.11 0.004 250);
   --base-925: oklch(0.14 0.005 250);
@@ -30,7 +27,6 @@
   --base-200: oklch(0.86 0.006 250);
   --base-100: oklch(0.94 0.004 250);
   --base-50: oklch(0.98 0.002 250);
-
   --primary-900: oklch(0.32 0.16 340);
   --primary-800: oklch(0.38 0.14 340);
   --primary-700: oklch(0.45 0.12 340);
@@ -38,53 +34,42 @@
   --primary-500: oklch(0.60 0.10 340);
   --primary-400: oklch(0.68 0.08 340);
   --primary-300: oklch(0.75 0.06 340);
-
   --secondary-800: oklch(0.38 0.09 185);
   --secondary-700: oklch(0.45 0.08 185);
   --secondary-600: oklch(0.52 0.07 185);
   --secondary-500: oklch(0.60 0.06 185);
   --secondary-400: oklch(0.68 0.05 185);
   --secondary-300: oklch(0.75 0.04 185);
-
   --success: oklch(0.65 0.12 145);
   --warning: oklch(0.75 0.12 65);
   --destructive: oklch(0.60 0.15 25);
   --info: oklch(0.65 0.10 220);
-
   --border-subtle: oklch(0.16 0.003 270);
   --border-muted: oklch(0.20 0.004 270);
   --border: var(--border-muted);
   --border-strong: oklch(0.28 0.006 270);
   --border-focus: var(--primary-600);
-
-  /* Semantic color assignments */
   --background: var(--base-925);
   --foreground: var(--base-100);
   --surface: var(--base-900);
   --surface-elevated: var(--base-850);
-
   --card: var(--base-900);
   --card-foreground: var(--base-100);
   --popover: var(--base-850);
   --popover-foreground: var(--base-100);
-
   --muted: var(--base-800);
   --muted-foreground: var(--base-500);
   --subtle: var(--base-750);
   --subtle-foreground: var(--base-400);
-
   --input: var(--base-800);
   --input-foreground: var(--base-100);
   --ring: var(--primary-600);
-
   --primary: var(--primary-600);
   --primary-foreground: var(--base-50);
   --secondary: var(--secondary-600);
   --secondary-foreground: var(--base-50);
-
   --accent: var(--base-800);
   --accent-foreground: var(--base-100);
-
   --sidebar: var(--base-1000);
   --sidebar-foreground: var(--base-100);
   --sidebar-primary: var(--primary-600);
@@ -93,7 +78,6 @@
   --sidebar-accent-foreground: var(--base-100);
   --sidebar-border: var(--base-850);
   --sidebar-ring: var(--primary-600);
-
   --font-xs: 0.75rem;      /* 12px - Captions */
   --font-sm: 0.875rem;     /* 14px - Small UI text */
   --font-base: 1rem;       /* 16px - Base size */
@@ -105,30 +89,25 @@
   --font-4xl: 2.25rem;     /* 36px - Display text */
   --font-5xl: 3rem;        /* 48px - Hero text */
   --font-6xl: 3.75rem;     /* 60px - Large display */
-
   --leading-tight: 1.25;
   --leading-snug: 1.375;
   --leading-normal: 1.5;
   --leading-relaxed: 1.7;
   --leading-loose: 1.8;
-
   --radius-sm: 4px;
   --radius: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-
   --content-width: 70ch;
   --content-width-wide: 80ch;
   --sidebar-width: 280px;
   --toc-width: 240px;
 }
-
 @theme inline {
   --font-display: var(--font-ui);
   --font-text: var(--font-content);
   --font-code: var(--font-mono);
-
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
@@ -166,40 +145,32 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
-
 @layer base {
   * {
     border-color: var(--color-border);
   }
-
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--subtle) transparent;
   }
-
   *::-webkit-scrollbar {
     width: 2px;
     height: 8px;
   }
-
   *::-webkit-scrollbar-track {
     background: transparent;
   }
-
   *::-webkit-scrollbar-thumb {
     background: var(--subtle);
     border-radius: 4px;
     opacity: 0.6;
   }
-
   *::-webkit-scrollbar-thumb:hover {
     opacity: 1;
   }
-
   *::-webkit-scrollbar-corner {
     background: transparent;
   }
-
   body {
     font-family: var(--font-ui), sans-serif;
     font-weight: var(--text-weight);
@@ -211,22 +182,18 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
   ::selection {
     background-color: color-mix(in oklch, var(--primary) 50%, transparent);
     color: var(--primary-foreground);
   }
-
   ::-moz-selection {
     background-color: color-mix(in oklch, var(--primary) 50%, transparent);
     color: var(--primary-foreground);
   }
-
   code, pre {
     font-family: var(--font-code), monospace;
     font-feature-settings: "liga" 1, "calt" 1;
   }
-
   .publication-title {
     font-family: var(--font-content), serif;
     font-size: var(--font-4xl);
@@ -235,11 +202,6 @@
     line-height: 1.25;
     color: var(--color-foreground);
   }
-
-  /*
-   * Prose styles
-   * publication styling
-   */
   .prose {
     font-family: var(--font-content), serif;
     color: var(--color-foreground);
@@ -247,27 +209,22 @@
     font-size: var(--font-md);
     font-weight: var(--text-weight);
     max-width: var(--content-width);
-
     text-align: left
   }
-
   .prose strong,
   .prose b {
     font-weight: var(--bold-weight);
     color: var(--color-foreground);
   }
-
   .prose em,
   .prose i {
     font-style: italic;
     font-weight: var(--medium-weight);
   }
-
   .prose p {
     margin-bottom: 0.75em;
     text-indent: 0;
   }
-
   .prose a {
     color: var(--secondary-400);
     text-decoration: underline;
@@ -276,20 +233,17 @@
     text-decoration-thickness: 1px;
     transition: all 0.2s ease;
   }
-
   .prose a:hover {
     color: var(--secondary-300);
     text-decoration-color: var(--secondary-400);
     text-decoration-thickness: 2px;
   }
-
   .prose h1 {
     font-weight: var(--bold-weight);
     letter-spacing: -0.025em;
     margin-top: 2em;
     margin-bottom: 1em;
   }
-
   .prose h2 {
     font-size: var(--font-3xl);
     font-weight: var(--bold-weight);
@@ -299,31 +253,26 @@
     margin-top: 1.75em;
     margin-bottom: 0.875em;
   }
-
   .prose h3 {
     font-weight: var(--bold-weight);
     margin-top: 1.5em;
     margin-bottom: 0.75em;
   }
-
   .prose h4 {
     font-size: var(--font-xl);
     margin-top: 1.25em;
     margin-bottom: 0.75em;
   }
-
   .prose h5 {
     font-size: var(--font-lg);
     margin-top: 1.25em;
     margin-bottom: 0.75em;
   }
-
   .prose h6 {
     font-size: var(--font-base);
     margin-top: 1.25em;
     margin-bottom: 0.75em;
   }
-
   .prose h1,
   .prose h3,
   .prose h4,
@@ -333,7 +282,6 @@
     font-weight: var(--display-weight) !important;
     color: var(--color-foreground) !important;
   }
-
   .prose blockquote {
     border-left: 3px solid var(--color-secondary);
     background-color: color-mix(in oklch, var(--secondary-800) 15%, transparent);
@@ -345,15 +293,12 @@
     border-radius: var(--radius-sm);
     position: relative;
   }
-
   .prose blockquote p {
     margin-bottom: 0;
   }
-
   .prose blockquote p:not(:last-child) {
     margin-bottom: 0.75em;
   }
-
   .prose code {
     background-color: var(--base-850);
     color: var(--primary-300);
@@ -364,7 +309,6 @@
     font-family: var(--font-mono), monospace;
     font-weight: 500;
   }
-
   .prose pre {
     background-color: var(--base-925);
     color: var(--base-100);
@@ -377,7 +321,6 @@
     line-height: 1.7;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
   }
-
   .prose pre code {
     background: none;
     padding: 0;
@@ -385,76 +328,61 @@
     color: inherit;
     font-size: inherit;
   }
-
   .prose hr {
     border: none;
     border-top: 1px solid var(--primary);
     margin: 2em 0;
   }
-
   .prose ul,
   .prose ol {
     margin: 1.25em 0;
     padding-left: 1.5em;
   }
-
   .prose ul {
     list-style-type: disc;
   }
-
   .prose ol {
     list-style-type: decimal;
   }
-
   .prose li {
     margin: 0.25em 0;
     padding-left: 0.25em;
   }
-
   .prose li > p {
     margin: 0;
   }
-
   .prose ul ul,
   .prose ol ol,
   .prose ul ol,
   .prose ol ul {
     margin: 0.5em 0;
   }
-
   .prose ul ul {
     list-style-type: circle;
   }
-
   .prose ul ul ul {
     list-style-type: square;
   }
-
   .hljs {
     font-family: var(--font-code), monospace;
     font-size: 0.875rem;
     line-height: 1.6;
   }
-
   .hljs-keyword {
     color: oklch(0.65 0.15 340);
     font-weight: 600;
   }
-
   .hljs-string {
     color: oklch(0.75 0.12 145);
   }
-
   .hljs-comment {
     color: var(--color-muted-foreground);
     font-style: italic;
   }
-
   .hljs-function,
   .hljs-title {
     color: var(--primary);
   }
-
   .hljs-number,
   .hljs-literal {
     color: var(--color-info);
@@ -466,19 +394,13 @@
     font-size: var(--font-md);
     line-height: var(--leading-relaxed);
   }
-
   .reading-width {
     max-width: var(--content-width);
   }
-
   .reading-width-wide {
     max-width: var(--content-width-wide);
   }
 }
-
-/*
- * tiptap editor styles
- */
 .minimal-tiptap-editor .ProseMirror {
   font-family: var(--font-content), serif;
   color: var(--color-foreground);
@@ -486,30 +408,25 @@
   font-size: var(--font-md);
   font-weight: var(--text-weight);
 }
-
 .minimal-tiptap-editor .ProseMirror strong,
 .minimal-tiptap-editor .ProseMirror b {
   font-weight: var(--bold-weight);
   color: var(--color-foreground);
 }
-
 .minimal-tiptap-editor .ProseMirror em,
 .minimal-tiptap-editor .ProseMirror i {
   font-style: italic;
   font-weight: var(--medium-weight);
 }
-
 .minimal-tiptap-editor .ProseMirror p {
   margin-bottom: 0.75em;
   text-indent: 0;
 }
-
 .minimal-tiptap-editor .ProseMirror h1 {
   font-size: var(--font-4xl);
   margin-top: 1.25em;
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror h2 {
   font-size: var(--font-3xl);
   border-bottom: 0.5px solid var(--color-border-strong);
@@ -517,31 +434,26 @@
   margin-top: 1.25em;
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror h3 {
   font-size: var(--font-2xl);
   margin-top: 1.25em;
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror h4 {
   font-size: var(--font-xl);
   margin-top: 1.25em;
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror h5 {
   font-size: var(--font-lg);
   margin-top: 1.25em;
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror h6 {
   font-size: var(--font-base);
   margin-top: 1.25em;
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror h1,
 .minimal-tiptap-editor .ProseMirror h2,
 .minimal-tiptap-editor .ProseMirror h3,
@@ -552,7 +464,6 @@
   font-weight: var(--display-weight);
   color: var(--color-foreground);
 }
-
 .minimal-tiptap-editor .ProseMirror blockquote {
   border-left: 3px solid var(--color-secondary);
   background-color: color-mix(in oklch, var(--secondary-800) 15%, transparent);
@@ -564,15 +475,12 @@
   border-radius: var(--radius-sm);
   position: relative;
 }
-
 .minimal-tiptap-editor .ProseMirror blockquote p {
   margin-bottom: 0;
 }
-
 .minimal-tiptap-editor .ProseMirror blockquote p:not(:last-child) {
   margin-bottom: 0.75em;
 }
-
 .minimal-tiptap-editor .ProseMirror a {
   color: var(--secondary-400);
   text-decoration: underline;
@@ -586,7 +494,6 @@
   text-decoration-color: var(--secondary-400);
   text-decoration-thickness: 2px;
 }
-
 .minimal-tiptap-editor .ProseMirror code.inline {
   background-color: var(--base-850);
   color: var(--primary-300);
@@ -597,7 +504,6 @@
   font-family: var(--font-mono), monospace;
   font-weight: 500;
 }
-
 .minimal-tiptap-editor .ProseMirror pre {
   background-color: var(--base-925);
   color: var(--base-100);
@@ -610,7 +516,6 @@
   line-height: 1.7;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
-
 .minimal-tiptap-editor .ProseMirror pre code {
   background: none;
   padding: 0;
@@ -618,47 +523,38 @@
   color: inherit;
   font-size: inherit;
 }
-
 .minimal-tiptap-editor .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--primary);
   margin: 2em 0;
 }
-
 .minimal-tiptap-editor .ProseMirror ul,
 .minimal-tiptap-editor .ProseMirror ol {
   margin: 1.25em 0;
   padding-left: 1.5em;
 }
-
 .minimal-tiptap-editor .ProseMirror ul {
   list-style-type: disc;
 }
-
 .minimal-tiptap-editor .ProseMirror ol {
   list-style-type: decimal;
 }
-
 .minimal-tiptap-editor .ProseMirror li {
   margin: 0.25em 0;
   padding-left: 0.25em;
 }
-
 .minimal-tiptap-editor .ProseMirror li > p {
   margin: 0;
 }
-
 .minimal-tiptap-editor .ProseMirror ul ul,
 .minimal-tiptap-editor .ProseMirror ol ol,
 .minimal-tiptap-editor .ProseMirror ul ol,
 .minimal-tiptap-editor .ProseMirror ol ul {
   margin: 0.5em 0;
 }
-
 .minimal-tiptap-editor .ProseMirror ul ul {
   list-style-type: circle;
 }
-
 .minimal-tiptap-editor .ProseMirror ul ul ul {
   list-style-type: square;
 }

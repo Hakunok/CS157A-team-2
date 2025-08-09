@@ -4,28 +4,28 @@ import java.time.LocalDateTime;
 
 /**
  * Represents a drafted or published publication submitted by an account.
+ * <p>
+ * This entity is stored in the {@code publication} table and contains metadata such as title, content,
+ * DOI, type, submission timestamp, and publication status.
+ * <p>
+ * A {@code Publication} is initially saved as a draft and later published via the publication workflow.
+ * It can be associated with multiple authors and topics.
  *
- * <p>This entity is stored in the {@code} publication table and includes metadata such as title,
- * content, submission timestamp, kind (e.g., paper or blog), and publication status (draft or
- * published).
+ * @param pubId the publication's unique id
+ * @param title the title of the publication
+ * @param content the content body in Markdown/HTML
+ * @param doi optional doi for papers
+ * @param url optional external url for PDF
+ * @param kind the type of publication
+ * @param submitterId the id of the user who created the draft
+ * @param submittedAt the timestamp the draft was submitted
+ * @param publishedAt the timestamp the publication was published
+ * @param status the current publication status
  *
- * <p> Each {@code Publication} may be associated with:
- * <ul>
- *   <li>One submitter account</li>
- *   <li>One or more authors</li>
- *   <li>One or more topics</li>
- * </ul>
- *
- * @param pubId
- * @param title
- * @param content
- * @param doi
- * @param url
- * @param kind
- * @param submitterId
- * @param submittedAt
- * @param publishedAt
- * @param status
+ * @see Kind
+ * @see Status
+ * @see PublicationAuthor
+ * @see PublicationTopic
  */
 public record Publication(
     int pubId,
@@ -41,16 +41,23 @@ public record Publication(
 ) {
 
   /**
-   * Indicates the type of {@link Publication}.
-   * <p>Enums: {@code PAPER}, {@code BLOG}, {@code ARTICLE}
+   * Enum representing the type or category of a {@link Publication}.
+   * <ul>
+   *   <li>{@code PAPER} – a formal research paper, often with DOI and external link</li>
+   *   <li>{@code BLOG} – an informal blog post or commentary</li>
+   *   <li>{@code ARTICLE} – a mid-length informational article</li>
+   * </ul>
    */
   public enum Kind {
     PAPER, BLOG, ARTICLE
   }
 
   /**
-   * Indicates whether a {@link Publication} is in a draft or published state.
-   * <p>Enums: {@code PUBLISHED}, {@code DRAFT}
+   * Enum representing the current status of a {@link Publication}.
+   * <ul>
+   *   <li>{@code DRAFT} – not yet published; editable by the author</li>
+   *   <li>{@code PUBLISHED} – finalized and publicly visible</li>
+   * </ul>
    */
   public enum Status {
     PUBLISHED, DRAFT

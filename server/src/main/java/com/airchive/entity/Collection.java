@@ -4,26 +4,23 @@ import java.time.LocalDateTime;
 
 /**
  * Represents a user-created collection of saved publications.
+ * <p>
+ * A {@code Collection} is created and owned by an {@link Account}, and is used to organize publications
+ * into groups.
+ * <p>
+ * Each account may have multiple collections, including one system-managed default collection. Collections can
+ * be private or public, and they may contain many publications via the {@code collection_item} table.
  *
- * <p>A collection is created and owned by an {@code Account}, and is intended to be used to
- * organize publications into meaningful groups (e.g., "Favorites", "To Read", "Information
- * Security", etc).
+ * @param collectionId the collection's unique id
+ * @param accountId the id of the account that owns this collection
+ * @param title the title of the collection
+ * @param description optional description of the collection
+ * @param isDefault whether this is the default collection for the account
+ * @param isPublic whether the collection is publicly visible
+ * @param createdAt the timestamp of when the collection was created
  *
- * <p>Collections support privacy and default flags:
- * <ul>
- *   <li>{@code isDefault} - marks the system-managed default collection (one per account)</li>
- *   <li>{@code isPublic} - determines if the collection can be viewed by others</li>
- * </ul>
- *
- * <p>Each collection may contain multiple publications via the {@code collection_item} table.
- *
- * @param collectionId
- * @param accountId
- * @param title
- * @param description
- * @param isDefault
- * @param isPublic
- * @param createdAt
+ * @see com.airchive.dto.CollectionResponse
+ * @see com.airchive.dto.MiniCollection
  */
 public record Collection(
     int collectionId,

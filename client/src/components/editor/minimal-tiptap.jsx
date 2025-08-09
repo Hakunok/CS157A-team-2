@@ -1,6 +1,6 @@
 import * as React from "react";
 import { EditorContent } from "@tiptap/react";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@/components/separator.jsx";
 import { cn } from "@/lib/utils";
 import { SectionOne } from "./components/section/one";
 import { SectionTwo } from "./components/section/two";

@@ -6,28 +6,25 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Record representing a publication for lightweight responses needed for search results,
- * recommendations, or an author's dashboard.
+ * Lightweight response body representing a {@link Publication} used for publication list views such as
+ * search results, explore pages, and author dashboards.
+ * <p>
+ * This record includes only the essential metadata for displays such as title, kind, publish date, view/like count,
+ * authors, etc.
+ * <p>
+ * This DTO is used in endpoints like {@code GET /publications/search}, {@code GET /publications/recommendations},
+ * {@code GET /publications/my}, etc.
  *
- * <p>This record includes only minimal metadata required for display: title, kind, publish
- * timestamp, author names, and topics.
- * It does not include content, submitter id, or draft-related fields.
+ * @param pubId the publication's unique id
+ * @param title the title of the publication
+ * @param kind the kind of the publication
+ * @param publishedAt the publishing datetime
+ * @param viewCount the number of views recorded
+ * @param likeCount the number of likes recorded
+ * @param authors the minimal first author data
+ * @param topics list of topics related to the publication
  *
- * <p>Returned by endpoints such as:
- * <ul>
- *   <li>{@code GET /publications/search}</li>
- *   <li>{@code GET /publications/recommendations}</li>
- *   <li>{@code GET /publications/my}</li>
- * </ul>
- *
- * @param pubId
- * @param title
- * @param kind
- * @param publishedAt
- * @param viewCount
- * @param likeCount
- * @param authors
- * @param topics
+ * @see Publication
  */
 public record MiniPublication(
     int pubId,
@@ -40,6 +37,16 @@ public record MiniPublication(
     List<Topic> topics
 ) {
 
+  /**
+   * Constructs a {@code MiniPublication} from a full {@link Publication} and its metadata.
+   *
+   * @param pub the publication entity
+   * @param viewCount number of views
+   * @param likeCount number of likes
+   * @param firstAuthor the first author to include (optional)
+   * @param topics list of topics associated with the publication (optional)
+   * @return a {@code MiniPublication} for lightweight responses
+   */
   public static MiniPublication from(
       Publication pub,
       int viewCount,

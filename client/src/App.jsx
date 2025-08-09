@@ -1,6 +1,6 @@
 import { BrowserRouter } from "react-router-dom"
 import AppRoutes from "@/routes/AppRoutes"
-import Navbar from "@/components/layout/Navbar"
+import Navbar from "@/components/Navbar.jsx"
 import {Toaster} from "sonner";
 
 function App() {

@@ -9,29 +9,29 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * The full response body representing a single publication with all associated metadata needed
- * for the frontend.
+ * The full response body representing a complete publication and all associated metadata.
+ * <p>
+ * This DTO is used by endpoints that return detailed publication information, such as pages that
+ * render the publication.
+ * <p>
+ * Used by endpoints such as {@code GET /publications/{id}}.
  *
- * <p>This record is used when returning the complete details of a publication, such as on a
- * detail page or preview modal. It includes the publication's title, content, submission
- * metadata, publication status, and all associated authors and topics.
+ * @param pubId the unique publication id
+ * @param title the title of the publication
+ * @param content the body content as Markdown or HTML
+ * @param doi optional doi for papers
+ * @param url optional url for pdf link
+ * @param kind the type of publication
+ * @param submitterId the id of the submitting user
+ * @param submittedAt the time at which the draft was published
+ * @param publishedAt the time at which the publication was published
+ * @param status the current publication status
+ * @param viewCount the number of times viewed
+ * @param likeCount the number of likes received
+ * @param authors list of authors
+ * @param topics list of associated topics
  *
- * <p>Used by endpoints such as {@code GET /publications/{id}}.
- *
- * @param pubId
- * @param title
- * @param content
- * @param doi
- * @param url
- * @param kind
- * @param submitterId
- * @param submittedAt
- * @param publishedAt
- * @param status
- * @param viewCount
- * @param likeCount
- * @param authors
- * @param topics
+ * @see Publication
  */
 public record PublicationResponse(
     int pubId,
@@ -51,13 +51,14 @@ public record PublicationResponse(
 ) {
 
   /**
-   * Factory method to build a {@code PublicationResponse} from a {@link Publication} entity and
-   * its associated authors and topics.
+   * Constructs a full {@code PublicationResponse}, including authors and topics.
    *
    * @param publication the publication entity
-   * @param authors the ordered list of authors
-   * @param topics the list of topics associated with the publication
-   * @return a fully populated {@code PublicationResponse}
+   * @param viewCount total view count
+   * @param likeCount total like count
+   * @param authors ordered list of author entities
+   * @param topics list of associated topics
+   * @return a fully constructed {@code PublicationResponse}
    */
   public static PublicationResponse from(Publication publication, int viewCount, int likeCount, List<Person> authors, List<Topic> topics) {
     return new PublicationResponse(

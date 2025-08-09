@@ -298,36 +298,6 @@ public class PublicationRepository extends BaseRepository {
     ).stream().findFirst().orElse(0);
   }
 
-  public List<Publication> findByKindAndTopics(Publication.Kind kind, List<Integer> topicIds, int page, int pageSize) {
-    return withConnection(conn -> findByKindAndTopics(kind, topicIds, page, pageSize, conn));
-  }
-
-  public List<Publication> findByKindAndTopics(Publication.Kind kind, List<Integer> topicIds, int page, int pageSize, Connection conn) {
-    if (topicIds == null || topicIds.isEmpty()) return List.of();
-    int offset = (page - 1) * pageSize;
-
-    String placeholders = topicIds.stream().map(id -> "?").collect(Collectors.joining(", "));
-    StringBuilder sql = new StringBuilder("""
-    SELECT DISTINCT p.*
-    FROM publication p
-    JOIN publication_topic pt ON pt.publication_id = p.pub_id
-    WHERE p.status = 'PUBLISHED' AND pt.topic_id IN (""" + placeholders + ")");
-
-    List<Object> params = new ArrayList<>(topicIds);
-
-    if (kind != null) {
-      sql.append(" AND p.kind = ?");
-      params.add(kind.name());
-    }
-
-    sql.append(" ORDER BY p.published_at DESC LIMIT ? OFFSET ?");
-    params.add(pageSize);
-    params.add(offset);
-
-    return findMany(conn, sql.toString(), this::mapRowToPublication, params.toArray());
-  }
-
-
   /**
    * Finds all publications submitted by a specific account.
    *
@@ -373,26 +343,36 @@ public class PublicationRepository extends BaseRepository {
    * @return A {@link List} of matching publications.
    */
   public List<Publication> searchByTitle(String query, int limit, Connection conn) {
-    String booleanQuery = Arrays.stream(query.toLowerCase().split("\\s+"))
-        .filter(t -> t.length() > 2)
-        .map(t -> {
-          if (t.length() >= 5) return "+" + t + "*";
-          else return "+" + t;
-        })
-        .collect(Collectors.joining(" "));
-
     String sql = """
-    SELECT pub_id, title, kind, published_at,
-           MATCH(title) AGAINST (? IN BOOLEAN MODE) AS relevance
+    SELECT pub_id, title, content, doi, url, kind, submitter_id,
+           submitted_at, published_at, status,
+           MATCH(title) AGAINST (? IN NATURAL LANGUAGE MODE) AS relevance
     FROM publication
-    WHERE MATCH(title) AGAINST (? IN BOOLEAN MODE)
+    WHERE MATCH(title) AGAINST (? IN NATURAL LANGUAGE MODE)
       AND status = 'PUBLISHED'
     ORDER BY relevance DESC, published_at DESC
     LIMIT ?;
     """;
 
-    return findMany(conn, sql, this::mapRowToPublication, booleanQuery, booleanQuery, limit);
+    return findMany(conn, sql, this::mapRowToPublication, query, query, limit);
   }
+
+  public List<Publication> findByIdsInOrder(List<Integer> pubIds) {
+    return withConnection(conn -> findByIdsInOrder(pubIds, conn));
+  }
+
+  public List<Publication> findByIdsInOrder(List<Integer> pubIds, Connection conn) {
+    if (pubIds == null || pubIds.isEmpty()) return List.of();
+
+    String placeholders = pubIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+    String orderByField = pubIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+
+    String sql = "SELECT * FROM publication WHERE pub_id IN (" + placeholders + ") " +
+        "ORDER BY FIELD(pub_id, " + orderByField + ")";
+
+    return findMany(conn, sql, this::mapRowToPublication, pubIds.toArray());
+  }
+
 
   /**
    * Maps a row from the 'publication' table to a {@link Publication} object.

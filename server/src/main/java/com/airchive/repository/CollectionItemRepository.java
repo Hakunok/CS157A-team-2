@@ -6,7 +6,7 @@ import java.util.List;
 public class CollectionItemRepository extends BaseRepository {
 
   /**
-   * Adds a publication to a collection. If already present, INSERT IGNORE ile atlanÄ±r.
+   * Adds a publication to a collection. If already present, INSERT IGNORE ile atlanır.
    */
   public void add(int collectionId, int pubId) {
     withConnection(conn -> {
@@ -20,7 +20,7 @@ public class CollectionItemRepository extends BaseRepository {
    */
   public void add(int collectionId, int pubId, Connection conn) {
     String sql = "INSERT IGNORE INTO collection_item (collection_id, pub_id) VALUES (?, ?)";
-    executeInsertWithGeneratedKey(conn, sql, collectionId, pubId);
+    executeUpdate(conn, sql, collectionId, pubId);
   }
 
   /**
@@ -44,7 +44,7 @@ public class CollectionItemRepository extends BaseRepository {
       WHERE account_id = ? AND is_default = TRUE
       """;
 
-    executeInsertWithGeneratedKey(conn, sql, pubId, accountId);
+    executeUpdate(conn, sql, pubId, accountId);
   }
 
   /**
@@ -67,7 +67,7 @@ public class CollectionItemRepository extends BaseRepository {
       WHERE c.account_id = ? AND c.is_default = TRUE AND ci.pub_id = ?
       """;
 
-    executeUpdate(conn, sql, pubId);
+    executeUpdate(conn, sql, accountId, pubId);
   }
 
   /**
@@ -134,7 +134,7 @@ public class CollectionItemRepository extends BaseRepository {
    * Transaction-safe version of findPublicationIdsInCollection()
    */
   public List<Integer> findPublicationIdsInCollection(int collectionId, Connection conn) {
-    String sql = "SELECT pub_id FROM collection_item WHERE collection_id = ? ORDER BY added_at DESC";
+    String sql = "SELECT pub_id FROM collection_item WHERE collection_id = ? ORDER BY added_at ASC";
     return findColumnMany(conn, sql, Integer.class, collectionId);
   }
 

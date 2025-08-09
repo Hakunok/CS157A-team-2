@@ -1,7 +1,9 @@
 import axios from "axios"
 import { toast } from "sonner"
+import qs from "qs"
 
-const baseURL = "/api" // Vite proxy: localhost:8080/server_war_exploded/api
+// Vite proxy for dev: localhost:8080/server_war_exploded/api
+const baseURL = "/api"
 
 const api = axios.create({
   baseURL,
@@ -11,7 +13,7 @@ const api = axios.create({
   },
 })
 
-// Error interceptor
+// Toast backend exceptions and errors
 api.interceptors.response.use(
     (res) => res,
     (err) => {
@@ -22,20 +24,18 @@ api.interceptors.response.use(
     }
 )
 
-// -----------------------------
-// Auth API
-// -----------------------------
+// Auth REST API
+// /api/auth/*
 export const authApi = {
   login: (data) => api.post("/auth/login", data).then((res) => res.data),
   register: (data) => api.post("/auth/register", data).then((res) => res.data),
   logout: () => api.post("/auth/logout"),
   refresh: () => api.get("/auth/me").then((res) => res.data),
-  validate: (data) => api.post("/auth/validate", data).then((res) => res.data),
 }
 
-// -----------------------------
-// User Profile + Stats API
-// -----------------------------
+
+// Users & Stats REST API
+// /api/users/*
 export const userApi = {
   getStats: () => api.get("/users/me/stats").then((res) => res.data),
   getInteractions: (limit = 5) =>
@@ -45,9 +45,9 @@ export const userApi = {
   recalculateAffinities: () => api.post("/users/me/affinities"),
 }
 
-// -----------------------------
-// Author Request API
-// -----------------------------
+
+// Author Request REST API
+// /api/author-requests/*
 export const authorRequestApi = {
   submit: () => api.post("/author-requests"),
   getStatus: () =>
@@ -60,24 +60,31 @@ export const authorRequestApi = {
       api.post(`/author-requests/${accountId}/approve`),
 }
 
-// -----------------------------
-// Collections API
-// -----------------------------
+// Collections REST API
+// /api/collections/*
 export const collectionApi = {
   create: (data) => api.post("/collections", data).then((res) => res.data),
+  update: (id, data) => api.put(`/collections/${id}`, data).then((res) => res.data),
   getMine: () => api.get("/collections/my").then((res) => res.data),
-  updateVisibility: (id, isPublic) =>
-      api.put(`/collections/${id}/visibility?public=${isPublic}`),
+  getById: (id) => api.get(`/collections/${id}`).then((res) => res.data),
+  getRecommendations: ({ page = 1, pageSize = 10 } = {}) =>
+      api.get(`/collections/recommendations?page=${page}&pageSize=${pageSize}`).then((res) => res.data),
   delete: (id) => api.delete(`/collections/${id}`),
+
   saveToDefault: (pubId) => api.post(`/collections/default/save/${pubId}`),
   removeFromDefault: (pubId) => api.delete(`/collections/default/save/${pubId}`),
   isSaved: (pubId) => api.get(`/collections/default/has/${pubId}`).then((res) => res.data),
   listSaved: () => api.get("/collections/default/publications").then((res) => res.data),
+
+  addToCollection: (collectionId, pubId) =>
+      api.post(`/collections/${collectionId}/add/${pubId}`),
+
+  removeFromCollection: (collectionId, pubId) =>
+      api.delete(`/collections/${collectionId}/remove/${pubId}`),
 }
 
-// -----------------------------
-// Topics API
-// -----------------------------
+// Topics REST API
+// /api/topics/*
 export const topicApi = {
   getAll: () => api.get("/topics").then((res) => res.data),
   search: (query) => api.get(`/topics/search?q=${query}`).then((res) => res.data),
@@ -86,9 +93,8 @@ export const topicApi = {
   delete: (id) => api.delete(`/topics/${id}`),
 }
 
-// -----------------------------
-// Publications API
-// -----------------------------
+// Publications REST API
+// /api/publications/*
 export const publicationApi = {
   createDraft: (data) => api.post("/publications", data).then((res) => res.data),
   editDraft: (id, data) => api.put(`/publications/${id}`, data).then((res) => res.data),
@@ -96,10 +102,19 @@ export const publicationApi = {
   getById: (id) => api.get(`/publications/${id}`).then((res) => res.data),
   search: (query) => api.get(`/publications/search?q=${query}`).then((res) => res.data),
   getMyPublications: () => api.get("/publications/my").then((res) => res.data),
-  getRecommendations: ({ kind, topicId, page = 1, pageSize = 10 }) =>
+  getRecommendations: ({ kinds = [], topicIds = [], page = 1, pageSize = 10 } = {}) =>
       api.get("/publications/recommendations", {
-        params: { kind, topicId, page, pageSize },
-      }).then((res) => res.data),
+        params: {
+          ...(kinds.length > 0 && { kinds }),
+          ...(topicIds.length > 0 && { topicId: topicIds }),
+          page,
+          pageSize
+        },
+        paramsSerializer: {
+          serialize: (params) =>
+              qs.stringify(params, { arrayFormat: "repeat" })
+        }
+      }).then(res => res.data),
   like: (id) => api.post(`/publications/${id}/like`),
   unlike: (id) => api.delete(`/publications/${id}/like`),
   hasLiked: (id) => api.get(`/publications/${id}/like`).then((res) => res.data),

@@ -288,4 +288,4 @@ public class PublicationAuthorRepository extends BaseRepository {
         Publication.Status.valueOf(rs.getString("status"))
     );
   }
-
+}

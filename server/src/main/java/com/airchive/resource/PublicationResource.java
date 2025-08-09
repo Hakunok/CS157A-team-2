@@ -5,12 +5,13 @@ import com.airchive.dto.MiniPublication;
 import com.airchive.dto.PublicationResponse;
 import com.airchive.dto.PublishRequest;
 import com.airchive.dto.SessionUser;
+import com.airchive.entity.Person;
 import com.airchive.entity.Publication;
+import com.airchive.service.PersonAccountService;
 import com.airchive.service.PublicationService;
 import com.airchive.util.SecurityUtils;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.PostConstruct;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -28,196 +29,184 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 /**
- * REST API for managing publications including drafts, publishing, recommendations, and user
- * interactions such as likes and views.
+ * REST resource for managing publications, drafts, publishing, recommendations, and user interactions
+ * such as likes and views.
+ * <p>
+ * This class exposes all endpoints under {@code /publications}. It supports the full publication
+ * lifecycle from draft creation to publication. It also includes endpoints for personalized recommendations
+ * and user interaction tracking.
  *
- * <p>Some endpoints require authentication. Role-based routes are enforced through service-layer
- * validation via {@link SecurityUtils}.
+ * <p>
+ * <b>Endpoints:</b>
+ * <ul>
+ *   <li>{@code POST /publications} - create a new draft for the requesting user</li>
+ *   <li>{@code PUT /publications/{id}} - update a draft owned by the requesting user</li>
+ *   <li>{@code POST /publications/{id}/publish} - publish a draft owned by the requesting user</li>
+ *   <li>{@code GET /publications/{id}} - get a publication by id</li>
+ *   <li>{@code GET /publications/my} - get all publications created by the requesting user</li>
+ *   <li>{@code GET /publications/search} - search for publications by title</li>
+ *   <li>{@code GET /publications/recommendations} - get personalized or popular publication recommendations</li>
+ *   <li>{@code POST /publications/{id}/like} - like a publication for the requesting user</li>
+ *   <li>{@code DELETE /publications/{id}/like} - unlike a publication for the requesting user</li>
+ *   <li>{@code GET /publications/{id}/like} - check if a publication is liked by the requesting user</li>
+ *   <li>{@code POST /publications/{id}/view} - register a view interaction for the requesting user</li>
+ *   <li>{@code GET /publications/person-by-email/{email}} - search for a person by email</li>
+ *   <li>{@code POST /publications/create-author} - create a new person/author</li>
+ * </ul>
  *
- * <p>All responses are returned in JSON and use {@link com.airchive.dto} and
- * {@link com.airchive.entity} records.
+ * <p>
+ * Services are injected manually via {@link ServletContext}, and session authentication
+ * is performed using {@link com.airchive.util.SecurityUtils}. All endpoints consume and produce JSON.
  */
 @Path("/publications")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class PublicationResource {
 
+  // Used to retrieve service instances injected via AppBootstrap
   @Context private ServletContext ctx;
+
+  // Used to extract the current SessionUser for authentication
   @Context private HttpServletRequest request;
 
-  private PublicationService publicationService;
-
-  @PostConstruct
-  public void init() {
-    publicationService = (PublicationService) ctx.getAttribute("publicationService");
+  private PublicationService getPublicationService() {
+    return (PublicationService) ctx.getAttribute("publicationService");
   }
 
-  /**
-   * Creates a new draft publication.
-   *
-   * @param draft the draft metadata to save
-   * @return the created {@link PublicationResponse}
-   */
+  private PersonAccountService getPersonService() {
+    return (PersonAccountService) ctx.getAttribute("personAccountService");
+  }
+
   @POST
   public Response createDraft(Draft draft) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    PublicationResponse created = publicationService.createDraft(user, draft);
+    PublicationResponse created = getPublicationService().createDraft(user, draft);
     return Response.status(Response.Status.CREATED).entity(created).build();
   }
 
-  /**
-   * Updates the content of an existing draft.
-   *
-   * @param pubId the id of the draft to update
-   * @param draft the updated draft content
-   * @return the updated {@link PublicationResponse}
-   */
+
   @PUT
   @Path("/{id}")
   public Response editDraft(@PathParam("id") int pubId, Draft draft) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    PublicationResponse updated = publicationService.editDraft(user, pubId, draft);
+    PublicationResponse updated = getPublicationService().editDraft(user, pubId, draft);
     return Response.ok(updated).build();
   }
 
-  /**
-   * Publishes a finalized draft by attaching authors, topics, and optionally setting a published
-   * date.
-   *
-   * @param pubId the id of the draft to publish
-   * @param publishRequest the author ids, topic ids, and optional publish time
-   * @return the finalized {@link PublicationResponse}
-   */
+
   @POST
   @Path("/{id}/publish")
   public Response publish(@PathParam("id") int pubId, PublishRequest publishRequest) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    PublicationResponse published = publicationService.publishDraft(user, pubId, publishRequest);
+    PublicationResponse published = getPublicationService().publishDraft(user, pubId, publishRequest);
     return Response.ok(published).build();
   }
 
-  /**
-   * Retrieves full comprehensive publication metadata by id.
-   *
-   * @param pubId the id of the publication
-   * @return the comprehensive {@link PublicationResponse}
-   */
+
   @GET
   @Path("/{id}")
   public Response getById(@PathParam("id") int pubId) {
-    PublicationResponse response = publicationService.getPublicationById(pubId);
+    PublicationResponse response = getPublicationService().getPublicationById(pubId);
     return Response.ok(response).build();
   }
 
-  /**
-   * Searches for published publications by title with a fuzzyish full-text match.
-   * @param query the search keywords
-   * @return a list of {@link MiniPublication} responses
-   */
+
   @GET
   @Path("/search")
   public Response search(@QueryParam("q") String query) {
-    List<MiniPublication> results = publicationService.searchByTitle(query);
+    List<MiniPublication> results = getPublicationService().searchByTitle(query);
     return Response.ok(results).build();
   }
 
-  /**
-   * Lists all publications submitted by the currently authenticated author.
-   *
-   * @return a list of {@link MiniPublication}s created by the user
-   */
+
   @GET
   @Path("/my")
   public Response getMyPublications() {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    List<MiniPublication> mine = publicationService.getMyPublications(user);
+    List<MiniPublication> mine = getPublicationService().getMyPublications(user);
     return Response.ok(mine).build();
   }
 
-  /**
-   * Returns personalized publication recommendations based on interaction history and topic and
-   * author affinities.
-   *
-   * @param page the current page of results
-   * @param pageSize the number of results per page
-   * @param kind an optional filter for publication kind (e.g., BLOG, PAPER)
-   * @return a list of recommended {@link MiniPublication}s
-   */
+
   @GET
   @Path("/recommendations")
   public Response recommendations(
       @QueryParam("kind") String kindStr,
-      @QueryParam("topicId") Integer topicId,
+      @QueryParam("kinds") List<String> kindListStr,
+      @QueryParam("topicId") List<Integer> topicIds,
       @QueryParam("page") @DefaultValue("1") int page,
-      @QueryParam("pageSize") @DefaultValue("10") int pageSize) {
+      @QueryParam("pageSize") @DefaultValue("10") int pageSize
+  ) {
+    List<Publication.Kind> kinds = null;
 
-    if(kindStr == null || kindStr.isBlank()) {
-      return Response.status(Response.Status.BAD_REQUEST).entity(Map.of("message", "Missing required 'kind' parameter")).build();
+    if (kindStr != null && !kindStr.isBlank()) {
+      kinds = List.of(Publication.Kind.valueOf(kindStr.toUpperCase()));
+    } else if (kindListStr != null && !kindListStr.isEmpty()) {
+      kinds = kindListStr.stream().map(s -> Publication.Kind.valueOf(s.toUpperCase())).toList();
     }
-    Publication.Kind kind = Publication.Kind.ValueOf(kindStr.toUpperCase());
-    if (topicId != null) {
-      List<MiniPublication> results = publicationService.getByKindAndTopic(kind, topicId, page, pageSize);
+
+    SessionUser user = SecurityUtils.getSessionUserOrNull(request);
+
+    if (topicIds != null && !topicIds.isEmpty()) {
+      List<MiniPublication> results = getPublicationService().getByTopicsAndKinds(topicIds, kinds, page, pageSize, user);
       return Response.ok(results).build();
     }
-    SessionUser user = SecurityUtils.getSessionUserOrNull(request);
-    List<MiniPublication> recs = publicationService.getRecommendations(user, kind, page, pageSize);
+
+    List<MiniPublication> recs = getPublicationService().getRecommendations(user, kinds, page, pageSize);
     return Response.ok(recs).build();
   }
 
-  /**
-   * Registers a like interaction for the current user on the specified publication.
-   *
-   * @param pubId the id of the publication to like
-   * @return 200 OK
-   */
+
   @POST
   @Path("/{id}/like")
   public Response like(@PathParam("id") int pubId) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    publicationService.likePublication(user, pubId);
+    getPublicationService().likePublication(user, pubId);
     return Response.ok().build();
   }
 
-  /**
-   * Removes a previously liked publication from the user's interaction history.
-   *
-   * @param pubId the id of the publication to unlike
-   * @return 200 OK
-   */
+
   @DELETE
   @Path("/{id}/like")
   public Response unlike(@PathParam("id") int pubId) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    publicationService.unlikePublication(user, pubId);
+    getPublicationService().unlikePublication(user, pubId);
     return Response.ok().build();
   }
 
-  /**
-   * Checks whether the current user has liked the given publication.
-   *
-   * @param pubId the id of the publication
-   * @return {@code {"liked": true}} if liked, otherwise false
-   */
+
   @GET
   @Path("/{id}/like")
   public Response hasLiked(@PathParam("id") int pubId) {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
-    boolean liked = publicationService.hasLikedPublication(user, pubId);
+    boolean liked = getPublicationService().hasLikedPublication(user, pubId);
     return Response.ok(Map.of("liked", liked)).build();
   }
 
-  /**
-   * Records a view interaction for the given publication by the current user.
-   *
-   * @param pubId the id of the publication viewed
-   * @return 200 OK
-   */
+
   @POST
   @Path("/{id}/view")
   public Response view(@PathParam("id") int pubId) {
     SessionUser user = SecurityUtils.getSessionUserOrNull(request);
-    if (user == null) { return Response.ok().build(); }
-    publicationService.viewPublication(user, pubId);
+    if (user != null) {
+      getPublicationService().viewPublication(user, pubId);
+    }
     return Response.ok().build();
+  }
+
+  @GET
+  @Path("/person-by-email/{email}")
+  public Response getPersonByEmail(@PathParam("email") String email) {
+    PersonAccountService personService = getPersonService();
+    Person person = personService.getPersonByEmail(email);
+    return Response.ok(person).build();
+  }
+
+  @POST
+  @Path("/create-author")
+  public Response createPerson(Person person) {
+    PersonAccountService personService = getPersonService();
+    Person created = personService.createPerson(person);
+    return Response.status(Response.Status.CREATED).entity(created).build();
   }
 }

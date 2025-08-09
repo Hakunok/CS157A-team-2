@@ -7,17 +7,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Calendar } from "@/components/ui/calendar"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { KindBadge } from "@/components/ui/KindBadge"
-import { TopicBadge } from "@/components/ui/TopicBadge"
-import LoadingOverlay from "@/components/shared/LoadingOverlay"
+} from "@/components/dialog.jsx"
+import { Button } from "@/components/button.jsx"
+import { Input } from "@/components/input.jsx"
+import { Label } from "@/components/label.jsx"
+import { Calendar } from "@/components/calendar.jsx"
+import { Badge } from "@/components/badge.jsx"
+import { Card, CardContent } from "@/components/card.jsx"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/popover.jsx"
+import { KindBadge } from "@/components/KindBadge.jsx"
+import { TopicBadge } from "@/components/TopicBadge.jsx"
+import LoadingOverlay from "@/components/LoadingOverlay.jsx"
 import { topicApi, publicationApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -43,26 +43,30 @@ export default function PublishDraftPage() {
   const [publishDate, setPublishDate] = React.useState(null)
   const [showCalendar, setShowCalendar] = React.useState(false)
 
+  const [showContent, setShowContent] = React.useState(false)
+
   React.useEffect(() => {
     const loadData = async () => {
       try {
         const [pub, topicsData] = await Promise.all([
           publicationApi.getById(pubId),
-          topicApi.getAll()
-        ])
-        setPublication(pub)
-        setTopics(topicsData)
-        setFilteredTopics(topicsData)
-      } catch (error) {
-        toast.error("Failed to load publication data")
-        navigate("/my-publications")
+          topicApi.getAll(),
+        ]);
+        setPublication(pub);
+        setTopics(topicsData);
+        setFilteredTopics(topicsData);
+      } catch {
+        toast.error("Failed to load publication data");
+        navigate("/my-publications");
       } finally {
-        setLoading(false)
+        setLoading(false);
+        setTimeout(() => setShowContent(true), 100);
       }
-    }
+    };
 
-    loadData()
-  }, [pubId, navigate])
+    loadData();
+  }, [pubId, navigate]);
+
 
   React.useEffect(() => {
     if (!topicSearch.trim()) {
@@ -183,7 +187,7 @@ export default function PublishDraftPage() {
             <LoadingOverlay message="Publishing your work..." />
         )}
 
-        {/* Back Navigation */}
+        {/* back to my publications */}
         <div className="max-w-6xl mx-auto px-6 pt-8">
           <Button
               variant="ghost"
@@ -196,8 +200,13 @@ export default function PublishDraftPage() {
           </Button>
         </div>
 
-        <div className="max-w-4xl mx-auto px-6 pb-16 space-y-12">
-          {/* Header */}
+        <div
+            className={cn(
+                "max-w-5xl mx-auto px-6 pb-16 space-y-12 transition-opacity duration-500 ease-in-out",
+                showContent ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+        >
+        {/* page header */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
@@ -218,7 +227,7 @@ export default function PublishDraftPage() {
             </div>
           </div>
 
-          {/* Authors Section */}
+          {/* choose authors section */}
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -268,7 +277,7 @@ export default function PublishDraftPage() {
             </CardContent>
           </Card>
 
-          {/* Topics Section */}
+          {/* choose topics section */}
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -340,7 +349,7 @@ export default function PublishDraftPage() {
             </CardContent>
           </Card>
 
-          {/* Publish Date Section */}
+          {/* choose publish date section */}
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -394,7 +403,7 @@ export default function PublishDraftPage() {
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
+          {/* save/cancel buttons */}
           <div className="flex items-center justify-between pt-6 border-t border-border">
             <Button
                 variant="outline"
@@ -410,12 +419,12 @@ export default function PublishDraftPage() {
                 size="lg"
                 className="gap-2"
             >
-              Publish {publication.kind}
+              Publish
             </Button>
           </div>
         </div>
 
-        {/* Create Author Dialog */}
+        {/* dialog for creating a new author */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>

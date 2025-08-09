@@ -5,34 +5,33 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
- * The {@code Transaction} class provides an abstraction for managing JDBC transactions using
- * {@link Connection}. It integrates with the {@link DbConnectionManager} and ensures
- * consistent transaction control.
- *
- * <p>Usage pattern with try-with-resources:</p>
- *
+ * This class provides an abstraction for safely managing ACID JDBC transactions using a {@link Connection}
+ * obtained from {@link DbConnectionManager}.
+ * <p>
+ * This class supports atomicity by disabling auto-commit and allowing control over commit and rollback.
+ * It implements {@link AutoCloseable} so that it can be used within a try-with-resources block. If {@link #commit()}
+ * is not called before closing the transaction, the transaction is automatically rolled back to ensure consistency.
+ * <p>
+ * Regardless of success/failure the {@link Connection} is closed and auto-commit is set back to {@code true}.
+ * <p>
+ * Usage:
  * <pre>{@code
  * try (Transaction tx = new Transaction()) {
  *   tx.begin();
  *   Connection conn = tx.getConnection();
- *   // Perform DB operations using conn
- *   tx.commit(); // called explicitly
+ *   // perform database operations
+ *   tx.commit(); // must be called
  * }
  * }</pre>
- *
- * <p>Note: if {@code commit()} is not called before the transaction is closed, the transaction
- * will be rolled back.</p>
- *
- * @see java.sql.Connection
- * @see DbConnectionManager
  */
 public class Transaction implements AutoCloseable {
   private Connection connection;
   private boolean committed = false;
 
   /**
-   * Creates a new transaction by obtaining a connection from {@link DbConnectionManager}.
-   * @throws DataAccessException if the connection could not be established
+   * Creates a new transaction by obtaining a {@code Connection} from {@link DbConnectionManager}.
+   *
+   * @throws DataAccessException if the connection could not be obtained
    */
   public Transaction() throws DataAccessException {
     try {
@@ -42,12 +41,20 @@ public class Transaction implements AutoCloseable {
     }
   }
 
+  /**
+   * Returns the {@link Connection} associated with the transaction.
+   * <p>
+   * Only the connection returned from this method should be used in a transactional context.
+   *
+   * @return a JDBC connection tied to this transaction
+   */
   public Connection getConnection() {
     return this.connection;
   }
 
   /**
-   * Begins the transaction by setting {@code autoCommit} to {@code false}.
+   * Begins the transaction by disabling auto-commit on the connection.
+   *
    * @throws DataAccessException if the operation fails
    */
   public void begin() throws DataAccessException {
@@ -59,7 +66,10 @@ public class Transaction implements AutoCloseable {
   }
 
   /**
-   * Commits the transaction. If not called, the transaction will be rolled back on close.
+   * Commits the transaction.
+   * <p>
+   * If not called before closing, the transaction will be rolled back.
+   *
    * @throws DataAccessException if the commit fails
    */
   public void commit() throws DataAccessException {
@@ -73,9 +83,11 @@ public class Transaction implements AutoCloseable {
 
   /**
    * Closes the transaction.
-   * If {@link #commit()} was not called, the transaction is rolled back.
-   * Always restores {@code autoCommit} and closes the underlying connection.
-   * @throws DataAccessException if rollback or close fails
+   * <p>
+   * If {@link #commit()} was not called, the transaction is rolled back automatically.
+   * This method always restores auto-commit and closes the connection.
+   *
+   * @throws DataAccessException if rollback or connection close fails
    */
   @Override
   public void close() throws DataAccessException {

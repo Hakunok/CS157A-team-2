@@ -14,31 +14,40 @@ import javax.ws.rs.core.*;
 import java.util.List;
 
 /**
- * REST API for managing author requests.
+ * REST resource for managing author upgrade requests.
+ * <p>
+ * This class allows reader accounts to submit requests to become authors, and enables admins to review and
+ * approve those requests.
  *
- * <p>All endpoints require authentication. Admin-only routes are enforced via service-layer
- * validation via {@link SecurityUtils}.
+ * <p>
+ * <b>Exposed Endpoints:</b>
+ * <ul>
+ *   <li>{@code POST /author-requests} - submit a new author request for the requesting user (reader only)</li>
+ *   <li>{@code GET /author-requests/status} - check if the requesting user has a pending request</li>
+ *   <li>{@code GET /author-requests/pending} - get a list of all pending requests (admin only)</li>
+ *   <li>{@code GET /author-requests/pending/count} - get the total count of pending requests (admin only)</li>
+ *   <li>{@code POST /author-requests/{accountId}/approve} - approve a request and upgrade the account (admin only)</li>
+ * </ul>
  *
- * <p>All responses are returned in JSON and use {@link com.airchive.dto} and
- * {@link com.airchive.entity} records.
+ * <p>
+ * Services are injected manually via {@link ServletContext}, and session authentication
+ * is performed using {@link com.airchive.util.SecurityUtils}. All endpoints consume and produce JSON.
  */
 @Path("/author-requests")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class AuthorRequestsResource {
+public class AuthorRequestResource {
 
+  // Used to retrieve service instances injected via AppBootstrap
   @Context private ServletContext ctx;
+
+  // Used to extract the current SessionUser for authentication
   @Context private HttpServletRequest request;
 
   private AuthorRequestService getService() {
     return (AuthorRequestService) ctx.getAttribute("authorRequestService");
   }
 
-  /**
-   * Submits a new author request for the currently logged-in reader account.
-   *
-   * @return a {@link Response} containing the newly created {@link AuthorRequest} record
-   */
   @POST
   public Response submitRequest() {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
@@ -56,14 +65,7 @@ public class AuthorRequestsResource {
     return Response.ok(Map.of("status", pending ? "PENDING" : "NONE")).build();
   }
 
-  /**
-   * Retrieves a paginated list of all pending author requests (admin-only).
-   *
-   * @param page the page number (default is 1)
-   * @param pageSize the number of results per age (default is 20)
-   * @return a {@link Response} containing a list of {@link AuthorRequest}s with status {@code
-   * PENDING}
-   */
+
   @GET
   @Path("/pending")
   public Response getPendingRequests(
@@ -74,11 +76,7 @@ public class AuthorRequestsResource {
     return Response.ok(requests).build();
   }
 
-  /**
-   * Returns the total count of pending author requests (admin-only).
-   *
-   * @return a {@link Response} containing the count (e.g. {@code {"count": 12}})
-   */
+
   @GET
   @Path("/pending/count")
   public Response getPendingCount() {
@@ -87,12 +85,6 @@ public class AuthorRequestsResource {
     return Response.ok(Map.of("count", count)).build();
   }
 
-  /**
-   * Approves an existing author request and upgrades the associated account to {@code AUTHOR}.
-   *
-   * @param accountId the account id of the request to approve
-   * @return a {@link Response} containing a confirmation message
-   */
   @POST
   @Path("/{accountId}/approve")
   public Response approveRequest(@PathParam("accountId") int accountId) {

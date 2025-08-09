@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/dialog.jsx";
 import ImageEditBlock from "./image-edit-block";
 
 const ImageEditDialog = ({ editor, size, variant }) => {

@@ -3,8 +3,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
+} from "@/components/tooltip.jsx";
+import { Button } from "@/components/button.jsx";
 import { cn } from "@/lib/utils";
 
 const ToolbarButton = ({

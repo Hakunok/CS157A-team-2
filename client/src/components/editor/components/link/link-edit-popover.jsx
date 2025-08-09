@@ -3,7 +3,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/popover.jsx";
 import { Link2Icon } from "@radix-ui/react-icons";
 import { ToolbarButton } from "../toolbar-button";
 import LinkEditBlock from "./link-edit-block";

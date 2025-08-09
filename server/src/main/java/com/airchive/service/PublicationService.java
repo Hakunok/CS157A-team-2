@@ -14,6 +14,7 @@ import com.airchive.entity.Topic;
 import com.airchive.exception.AuthenticationException;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.ValidationException;
+import com.airchive.repository.CollectionItemRepository;
 import com.airchive.repository.InteractionRepository;
 import com.airchive.repository.PersonRepository;
 import com.airchive.repository.PublicationAuthorRepository;
@@ -22,10 +23,11 @@ import com.airchive.repository.PublicationTopicRepository;
 import com.airchive.repository.RecommendationRepository;
 import com.airchive.repository.TopicRepository;
 import com.airchive.util.SecurityUtils;
-import com.airchive.util.ValidationUtils;
 import java.sql.Connection;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class PublicationService {
 
@@ -36,6 +38,7 @@ public class PublicationService {
   private final RecommendationRepository recommendationRepository;
   private final PersonRepository personRepository;
   private final TopicRepository topicRepository;
+  private final CollectionItemRepository collectionItemRepository;
 
   private static final int PUBLICATION_PAGE_SIZE = 10;
 
@@ -46,7 +49,8 @@ public class PublicationService {
       InteractionRepository interactionRepository,
       RecommendationRepository recommendationRepository,
       PersonRepository personRepository,
-      TopicRepository topicRepository
+      TopicRepository topicRepository,
+      CollectionItemRepository collectionItemRepository
   ) {
     this.publicationRepository = publicationRepository;
     this.publicationTopicRepository = publicationTopicRepository;
@@ -55,6 +59,7 @@ public class PublicationService {
     this.recommendationRepository = recommendationRepository;
     this.personRepository = personRepository;
     this.topicRepository = topicRepository;
+    this.collectionItemRepository = collectionItemRepository;
   }
 
   public PublicationResponse createDraft(SessionUser user, Draft request) {
@@ -134,7 +139,7 @@ public class PublicationService {
       }
 
       if (request.topicIds().size() > 3) {
-        throw new ValidationException("Only 3 topics can be tagged at most");
+        throw new ValidationException("You can tag at most 3 topics.");
       }
 
       for (int i = 0; i < request.authorIds().size(); i++) {
@@ -164,8 +169,7 @@ public class PublicationService {
 
   public void viewPublication(SessionUser requester, int pubId) {
     interactionRepository.addView(requester.accountId(), pubId);
-    recommendationRepository.updateAffinityForInteraction(requester.accountId(), pubId,
-        Interaction.VIEW.getAffinityWeight());
+    recommendationRepository.updateAffinityForInteraction(requester.accountId(), pubId, Interaction.VIEW.getAffinityWeight());
   }
 
   public void likePublication(SessionUser requester, int pubId) {
@@ -188,7 +192,7 @@ public class PublicationService {
     if (query == null || query.trim().isEmpty()) return List.of();
 
     List<Publication> publications = publicationRepository.searchByTitle(query.trim(), PUBLICATION_PAGE_SIZE);
-    return publications.stream().map(this::toMiniPublication).toList();
+    return toMiniPublications(publications);
   }
 
   public PublicationResponse getPublicationById(int pubId) {
@@ -198,114 +202,85 @@ public class PublicationService {
     return toPublicationResponse(pub);
   }
 
-  public List<MiniPublication> getRecommendations(SessionUser requester, int pageSize, int page, Publication.Kind kind) {
-    int requesterId = (requester == null) ? -1 : requester.accountId();
-    List<Integer> recommendationIds = recommendationRepository.getRecommendations(requesterId, pageSize, page, kind);
+  public List<MiniPublication> getByTopicsAndKinds(List<Integer> topicIds, List<Publication.Kind> kinds, int page, int pageSize, SessionUser user) {
+    int offset = (page - 1) * pageSize;
+    List<Integer> pubIds;
 
-    List<Publication> publications = publicationRepository.findByIds(recommendationIds);
-    return publications.stream().map(this::toMiniPublication).toList();
+    if (user != null) {
+      int accountId = user.accountId();
+      pubIds = recommendationRepository.getTopicBasedRecommendations(accountId, topicIds, kinds, pageSize, offset);
+    } else {
+      pubIds = recommendationRepository.getPublicationsByTopics(topicIds, kinds, pageSize, offset);
+    }
+
+    List<Publication> pubs = publicationRepository.findByIdsInOrder(pubIds);
+    return toMiniPublications(pubs);
   }
 
-  public List<MiniPublication> getByKindAndTopic(Publication.Kind kind, int topicId, int page, int pageSize) {
-    List<Publication> publications = publicationRepository.findByKindAndTopics(kind, List.of(topicId), page, pageSize);
-    return toMiniPublications(publications);
+  public List<MiniPublication> getRecommendations(SessionUser user, List<Publication.Kind> kinds, int page, int pageSize) {
+    int accountId = (user != null) ? user.accountId() : -1;
+    int offset = (page - 1) * pageSize;
+
+    List<Integer> pubIds = recommendationRepository.getRecommendations(accountId, pageSize, offset, kinds);
+    List<Publication> pubs = publicationRepository.findByIdsInOrder(pubIds);
+    return toMiniPublications(pubs);
   }
+
   public List<MiniPublication> getMyPublications(SessionUser requester) {
     SecurityUtils.requireAuthor(requester);
     List<Publication> publications = publicationRepository.findAllBySubmitter(requester.accountId());
-    return publications.stream().map(this::toMiniPublication).toList();
+    return toMiniPublications(publications);
   }
 
   public List<MiniPublication> getPublicationsFromDefault(SessionUser user) {
-    List<Integer> pubIds = collectionItemRepository.findPublicationIdsByDefault(user.accountId());
+    List<Integer> pubIds = collectionItemRepository.findPublicationIdsInDefault(user.accountId());
     List<Publication> publications = publicationRepository.findByIds(pubIds);
     return toMiniPublications(publications);
   }
-  
+
   private PublicationResponse toPublicationResponse(Publication pub) {
-    PublicationData data = fetchPublicationData(List.of(pub)).get(pub.pubId());
-    return PublicationResponse.from(pub, data.authors(), data.topics());
+    List<Integer> personIds = publicationAuthorRepository.findPersonIdsByPublication(pub.pubId());
+    List<Person> authors = personRepository.findByIds(personIds);
+
+    List<Integer> topicIds = publicationTopicRepository.findTopicIdsByPublication(pub.pubId());
+    List<Topic> topics = topicRepository.findByIds(topicIds);
+
+    int viewCount = interactionRepository.countViews(pub.pubId());
+    int likeCount = interactionRepository.countLikes(pub.pubId());
+
+    return PublicationResponse.from(pub, viewCount, likeCount, authors, topics);
   }
 
   private List<MiniPublication> toMiniPublications(List<Publication> publications) {
-    if (publications.isEmpty()) {
-      return List.of();
-    }
-
-    Map<Integer, PublicationData> dataMap = fetchPublicationData(publications);
-    
-    return publications.stream()
-        .map(pub -> {
-          PublicationData data = dataMap.get(pub.pubId());
-          List<MiniPerson> miniAuthors = data.authors().stream()
-              .map(MiniPerson::from)
-              .toList();
-              
-          return new MiniPublication(
-              pub.pubId(),
-              pub.title(),
-              pub.kind(),
-              pub.publishedAt(),
-              miniAuthors,
-              data.topics()
-          );
-        })
-        .toList();
+    return getMiniPublications(publications, interactionRepository, publicationAuthorRepository,
+        publicationTopicRepository);
   }
 
-  //For fetching batch data easier
-  Private Map<Integer, PublicationData> fetchPublicationData(List<Publications> publications) {
-    Set<Integer> pubIds = publications.stream()
-        .map(Publication::pubId)
-        .collect(Collectors.toSet());
+  static List<MiniPublication> getMiniPublications(List<Publication> publications,
+      InteractionRepository interactionRepository,
+      PublicationAuthorRepository publicationAuthorRepository,
+      PublicationTopicRepository publicationTopicRepository) {
+    if (publications == null || publications.isEmpty()) return List.of();
 
-    // Batch fetch all author relationships
-    Map<Integer, List<Integer>> pubToAuthorIds = publicationAuthorRepository
-        .findPersonIdsByPublications(pubIds);
-    
-    // Batch fetch all topic relationships  
-    Map<Integer, List<Integer>> pubToTopicIds = publicationTopicRepository
-        .findTopicIdsByPublications(pubIds);
+    List<Integer> pubIds = publications.stream().map(Publication::pubId).toList();
 
-    // Get all unique person and topic IDs
-    Set<Integer> allPersonIds = pubToAuthorIds.values().stream()
-        .flatMap(List::stream)
-        .collect(Collectors.toSet());
-        
-    Set<Integer> allTopicIds = pubToTopicIds.values().stream()
-        .flatMap(List::stream)
-        .collect(Collectors.toSet());
+    Map<Integer, Integer> viewCounts = interactionRepository.getViewCounts(pubIds);
+    Map<Integer, Integer> likeCounts = interactionRepository.getLikeCounts(pubIds);
+    Map<Integer, MiniPerson> firstAuthors = publicationAuthorRepository.getFirstAuthorMap(pubIds);
+    Map<Integer, List<Topic>> topicsMap = publicationTopicRepository.getTopicsMap(pubIds);
 
-    // Batch fetch all persons and topics
-    Map<Integer, Person> personMap = personRepository.findByIds(allPersonIds.stream().toList())
-        .stream()
-        .collect(Collectors.toMap(Person::personId, p -> p));
-        
-    Map<Integer, Topic> topicMap = topicRepository.findByIds(allTopicIds.stream().toList())
-        .stream()
-        .collect(Collectors.toMap(Topic::topicId, t -> t));
-
-    // Build the result map
-    Map<Integer, PublicationData> result = new HashMap<>();
-    
+    List<MiniPublication> result = new ArrayList<>();
     for (Publication pub : publications) {
-      List<Person> authors = pubToAuthorIds.getOrDefault(pub.pubId(), List.of())
-          .stream()
-          .map(personMap::get)
-          .filter(Objects::nonNull)
-          .toList();
-          
-      List<Topic> topics = pubToTopicIds.getOrDefault(pub.pubId(), List.of())
-          .stream()
-          .map(topicMap::get)
-          .filter(Objects::nonNull)
-          .toList();
-          
-      result.put(pub.pubId(), new PublicationData(authors, topics));
+      int pubId = pub.pubId();
+      result.add(MiniPublication.from(
+          pub,
+          viewCounts.getOrDefault(pubId, 0),
+          likeCounts.getOrDefault(pubId, 0),
+          firstAuthors.get(pubId),
+          topicsMap.getOrDefault(pubId, List.of())
+      ));
     }
-    
+
     return result;
   }
-  // For recording batch data
-  private record PublicationData(List<Person> authors, List<Topics> topics) {}
 }

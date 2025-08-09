@@ -1,14 +1,14 @@
 import React from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
-import { KindBadge } from "@/components/ui/KindBadge.jsx"
+import { Button } from "@/components/button.jsx";
+import { Input } from "@/components/input.jsx";
+import { Label } from "@/components/label.jsx";
+import { KindBadge } from "@/components/KindBadge.jsx";
 import MinimalTiptapEditor from "@/components/editor/minimal-tiptap.jsx";
-import LoadingOverlay from "@/components/shared/LoadingOverlay.jsx";
 import { publicationApi } from "@/lib/api.js";
-import { FileText, BookOpen, Newspaper, Save, Plus, ArrowLeft } from "lucide-react";
-import { toast } from "sonner"
+import { Save, Plus, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils.js";
 
 function useQueryParam(key) {
   const params = new URLSearchParams(useLocation().search);
@@ -22,11 +22,13 @@ export default function DraftFormPage() {
 
   const kindFromQuery = useQueryParam("kind")?.toUpperCase();
   const [kind, setKind] = React.useState(kindFromQuery || "");
-  const [loading, setLoading] = React.useState(isEditMode);
   const [title, setTitle] = React.useState("");
   const [doi, setDoi] = React.useState("");
   const [pdfUrl, setPdfUrl] = React.useState("");
   const [content, setContent] = React.useState("");
+
+  const [isLoadingDraft, setIsLoadingDraft] = React.useState(isEditMode);
+  const [showContent, setShowContent] = React.useState(!isEditMode);
 
   const isBlogLike = kind === "BLOG" || kind === "ARTICLE";
   const isPaper = kind === "PAPER";
@@ -47,7 +49,8 @@ export default function DraftFormPage() {
       } catch {
         console.error("Failed to load draft");
       } finally {
-        setLoading(false);
+        setIsLoadingDraft(false);
+        setTimeout(() => setShowContent(true), 100);
       }
     };
 
@@ -81,7 +84,6 @@ export default function DraftFormPage() {
     };
 
     try {
-      setLoading(true);
       if (isEditMode) {
         await publicationApi.editDraft(pubId, draft);
         toast.success("Draft saved");
@@ -92,20 +94,12 @@ export default function DraftFormPage() {
       }
     } catch {
       // handled by interceptor
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
       <div className="min-h-screen bg-background">
-        {loading && (
-            <LoadingOverlay
-                message={isEditMode ? "Saving draft..." : "Creating draft..."}
-            />
-        )}
-
-        {/* Back Navigation */}
+        {/* back to my publications */}
         <div className="max-w-6xl mx-auto px-6 pt-8">
           <Button
               variant="ghost"
@@ -118,18 +112,24 @@ export default function DraftFormPage() {
           </Button>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 pb-16 space-y-12">
-          {/* Header */}
+        {/* form content */}
+        <div
+            className={cn(
+                "max-w-5xl mx-auto px-6 pb-16 space-y-12 transition-opacity duration-500 ease-in-out",
+                showContent ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+        >
+          {/* page header */}
           <div className="flex items-center justify-between">
             <div className="space-y-2">
               <h1 className="text-4xl font-semibold font-ui text-foreground">
                 {isEditMode ? "Edit Draft" : "Create Draft"}
               </h1>
-              <KindBadge kind={kind}/>
+              <KindBadge kind={kind} />
             </div>
           </div>
 
-          {/* Title */}
+          {/* publication title input */}
           <div className="space-y-2">
             <Label htmlFor="title" className="font-content text-lg font-medium text-foreground">
               Title
@@ -142,12 +142,13 @@ export default function DraftFormPage() {
             />
           </div>
 
-          {/* Paper Metadata */}
+          {/* paper metadata input */}
           {isPaper && (
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="font-ui text-lg font-medium text-foreground">
-                    Abstract</Label>
+                    Abstract
+                  </Label>
                   <MinimalTiptapEditor
                       key={kind}
                       value={content}
@@ -158,7 +159,7 @@ export default function DraftFormPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="doi" className="font-ui text-lg font-medium text-foreground">
-                      Doi
+                      DOI
                     </Label>
                     <Input
                         id="doi"
@@ -169,7 +170,7 @@ export default function DraftFormPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="pdf" className="font-ui text-lg font-medium text-foreground">
-                      Pdf Url
+                      PDF URL
                     </Label>
                     <Input
                         id="pdf"
@@ -181,11 +182,10 @@ export default function DraftFormPage() {
               </div>
           )}
 
-          {/* Blog/Article Content */}
+          {/* mte for blogs and articles */}
           {isBlogLike && (
               <div className="space-y-2">
-                <Label className="font-ui text-lg font-medium text-foreground">
-                  Content</Label>
+                <Label className="font-ui text-lg font-medium text-foreground">Content</Label>
                 <MinimalTiptapEditor
                     key={kind}
                     value={content}
@@ -194,15 +194,14 @@ export default function DraftFormPage() {
               </div>
           )}
 
-          {/* Footer Submit */}
           <div className="flex items-center justify-between pt-6 border-t border-border">
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" onClick={() => navigate("/my-publications")}>
               Cancel
             </Button>
 
             <Button
                 onClick={handleSubmit}
-                disabled={!title.trim() || loading}
+                disabled={!title.trim() || isLoadingDraft}
                 size="lg"
                 className="gap-2"
             >

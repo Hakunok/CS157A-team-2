@@ -1,15 +1,16 @@
 package com.airchive.entity;
 
 /**
- * Represents a curated topic used to classify publications.
+ * Represents a curated topic used to classify and organize publications.
+ * <p>
+ * Topics allow publications to be grouped by subject are and are used for filtering, searching, and powering
+ * content-based recommendations.
+ * <p>
+ * Topics are associated with publications via the {@code publication_topic} many-to-many relationship table.
  *
- * <p>Topics are associated with publications through the {@code publication_topic} M:N
- * relationship table, enabling users to filter, search, and explore content based on
- * subject areas.
- *
- * @param topicId
- * @param code
- * @param fullName
+ * @param topicId the topic's unique id
+ * @param code the short code for a topic
+ * @param fullName the full name of a topic
  */
 public record Topic(
     int topicId,

@@ -3,13 +3,17 @@ package com.airchive.dto;
 import java.time.LocalDateTime;
 
 /**
- * Represents a lightweight summary of an account's interaction with a publication.
+ * Response body representing a summary of a user's interaction with a publication.
+ * <p>
+ * This DTO is used to display recent activity on a user dashboards or profile pages, inluding interactions
+ * such as likes, views, and saves.
  *
- * <p>This record is used for displaying recent user activity such as likes or views.
+ * @param pubId the id of the publication
+ * @param title the title of the publication
+ * @param type the type of interaction (LIKE, VIEW, SAVE)
+ * @param interacted_at the timestamp of when the interaction occurred
  *
- * @param pubId
- * @param type
- * @param interacted_at
+ * @see InteractionSummary.PublicationInteractionType
  */
 public record InteractionSummary(
     int pubId,
@@ -18,12 +22,12 @@ public record InteractionSummary(
     LocalDateTime interacted_at) {
 
   /**
-   * Enum representing publication interaction types.
+   * Enum representing the type of user interaction with a publication
    *
    * <ul>
    *   <li>{@code LIKE} - the user liked the publication</li>
    *   <li>{@code VIEW} - the user viewed the publication</li>
-   *   <li>{@code SAVE} - the user saved the publication</li>
+   *   <li>{@code SAVE} - the user saved the publication to a collection</li>
    * </ul>
    */
   public enum PublicationInteractionType {

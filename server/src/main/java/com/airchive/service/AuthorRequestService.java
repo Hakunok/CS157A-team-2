@@ -11,7 +11,6 @@ import com.airchive.repository.AccountRepository;
 import com.airchive.repository.AuthorRequestRepository;
 import com.airchive.util.SecurityUtils;
 import java.sql.Connection;
-import java.time.LocalDateTime;
 import java.util.List;
 import javax.ws.rs.ForbiddenException;
 
@@ -29,9 +28,7 @@ public class AuthorRequestService {
   }
 
   public AuthorRequest submitRequest(SessionUser user) {
-    if (user.role() != Account.Role.READER) {
-      throw new ForbiddenException("Only readers can submit author requests.");
-    }
+    SecurityUtils.requireReader(user);
 
     int accountId = user.accountId();
     if (authorRequestRepository.hasPendingRequest(accountId)) {
@@ -91,10 +88,5 @@ public class AuthorRequestService {
 
   public boolean hasPendingRequest(int accountId) {
     return authorRequestRepository.hasPendingRequest(accountId);
-  }
-
-  public AuthorRequest getRequestByAccountId(int accountId) {
-    return authorRequestRepository.findByAccountId(accountId)
-        .orElseThrow(() -> new EntityNotFoundException("Account has no pending author request."));
   }
 }

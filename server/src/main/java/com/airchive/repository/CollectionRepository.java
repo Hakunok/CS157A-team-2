@@ -1,5 +1,6 @@
 package com.airchive.repository;
 
+import com.airchive.dto.CreateOrUpdateCollectionRequest;
 import com.airchive.entity.Collection;
 import com.airchive.exception.EntityNotFoundException;
 import com.airchive.exception.ValidationException;
@@ -7,40 +8,24 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class CollectionRepository extends BaseRepository {
 
-  /**
-   * Creates a default "Saved" collection for a new user account.
-   * This method manages its own database connection.
-   *
-   * @param accountId The ID of the account for which to create the collection.
-   * @return The newly created default Collection.
-   * @throws ValidationException if a default collection already exists for the account.
-   * @throws EntityNotFoundException if the creation fails and the new collection cannot be retrieved.
-   */
   public Collection createDefaultCollection(int accountId) {
     return withConnection(conn -> createDefaultCollection(accountId, conn));
   }
 
-  /**
-   * Creates a default "Saved" collection for a new user account using a provided connection.
-   * This allows the operation to be part of a larger database transaction.
-   *
-   * @param accountId The ID of the account for which to create the collection.
-   * @param conn The active database connection.
-   * @return The newly created default Collection.
-   * @throws ValidationException if a default collection already exists for the account.
-   * @throws EntityNotFoundException if the creation fails and the new collection cannot be retrieved.
-   */
   public Collection createDefaultCollection(int accountId, Connection conn) {
     if (existsDefaultCollection(accountId, conn)) {
       throw new ValidationException("Default collection exists");
     }
     String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
-                     "VALUES (?, 'Saved', 'Your saved publications', TRUE, FALSE)";
+        "VALUES (?, 'Saved', 'Your saved publications', TRUE, FALSE)";
     int newId = executeInsertWithGeneratedKey(
         conn,
         sql,
@@ -50,33 +35,29 @@ public class CollectionRepository extends BaseRepository {
     return findById(newId, conn).orElseThrow(() -> new EntityNotFoundException("Retrieval of created Default Collection failed"));
   }
 
-  /**
-   * Creates a new user-defined collection in the database.
-   * This method manages its own database connection.
-   *
-   * @param collection The Collection object to persist. The ID field is ignored.
-   * @return The created Collection, now with its database-generated ID.
-   * @throws ValidationException if the collection is marked as default.
-   */
+
+  public boolean existsDefaultCollection(int accountId) {
+    return withConnection(conn -> existsDefaultCollection(accountId, conn));
+  }
+
+  public boolean existsDefaultCollection(int accountId, Connection conn) {
+    String sql = "SELECT * FROM collection WHERE account_id = ? AND is_default = TRUE LIMIT 1" ;
+    return exists(
+        conn,
+        sql,
+        accountId);
+  }
+
   public Collection create(Collection collection) {
     return withConnection(conn -> create(collection, conn));
   }
 
-  /**
-   * Creates a new user-defined collection using a provided connection.
-   * This allows the operation to be part of a larger database transaction.
-   *
-   * @param collection The Collection object to persist. The ID field is ignored.
-   * @param conn The active database connection.
-   * @return The created Collection, now with its database-generated ID.
-   * @throws ValidationException if the collection is marked as default.
-   */
   public Collection create(Collection collection, Connection conn) {
     if (collection.isDefault()) {
       throw new ValidationException("Cannot create default collection");
     }
     String sql = "INSERT INTO collection (account_id, title, description, is_default, is_public) " +
-                     "VALUES (?, ?, ?, FALSE, ?)";
+        "VALUES (?, ?, ?, FALSE, ?)";
     int newId = executeInsertWithGeneratedKey(
         conn,
         sql,
@@ -89,23 +70,28 @@ public class CollectionRepository extends BaseRepository {
     return findById(newId, conn).orElseThrow(() -> new EntityNotFoundException("Failed creation"));
   }
 
-  /**
-   * Finds a collection by its unique ID.
-   *
-   * @param collectionId The ID of the collection to find.
-   * @return An {@link Optional} containing the found Collection, or empty if not found.
-   */
+  public void update(int collectionId, CreateOrUpdateCollectionRequest request) {
+    withConnection(conn -> {
+      String sql = "UPDATE collection SET title = ?, description = ?, is_public = ? WHERE collection_id = ?";
+      int rows = executeUpdate(
+          conn,
+          sql,
+          request.title(),
+          request.description(),
+          request.isPublic(),
+          collectionId
+      );
+      if (rows == 0) {
+        throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+      }
+      return null;
+    });
+  }
+
   public Optional<Collection> findById(int collectionId) {
     return withConnection(conn -> findById(collectionId, conn));
   }
 
-  /**
-   * Finds a collection by its unique ID using a provided connection.
-   *
-   * @param collectionId The ID of the collection to find.
-   * @param conn The active database connection.
-   * @return An {@link Optional} containing the found Collection, or empty if not found.
-   */
   public Optional<Collection> findById(int collectionId, Connection conn) {
     String sql = "SELECT * FROM collection WHERE collection_id = ?" ;
     return findOne(
@@ -115,23 +101,10 @@ public class CollectionRepository extends BaseRepository {
         collectionId);
   }
 
-  /**
-   * Retrieves all collections owned by a specific account.
-   *
-   * @param accountId The ID of the account.
-   * @return A {@link List} of collections, ordered by creation date descending.
-   */
   public List<Collection> findByAccount(int accountId) {
     return withConnection(conn -> findByAccount(accountId, conn));
   }
 
-  /**
-   * Retrieves all collections owned by a specific account using a provided connection.
-   *
-   * @param accountId The ID of the account.
-   * @param conn The active database connection.
-   * @return A {@link List} of collections, ordered by creation date descending.
-   */
   public List<Collection> findByAccount(int accountId, Connection conn) {
     String sql = "SELECT * FROM collection WHERE account_id = ? ORDER BY created_at DESC" ;
     return findMany(
@@ -141,106 +114,55 @@ public class CollectionRepository extends BaseRepository {
         accountId);
   }
 
-  /**
-   * Finds the default "Saved" collection for a specific account.
-   *
-   * @param accountId The ID of the account.
-   * @return An {@link Optional} containing the default collection, or empty if not found.
-   */
-  public Optional<Collection> findDefaultCollectionByAccount(int accountId) {
-    return withConnection(conn -> findDefaultCollectionByAccount(accountId, conn));
-  }
+  public List<Collection> findRecommendedPublic(int accountId, int limit, int offset) {
+    if (accountId <= 0) {
+      return findRecentPublic(limit, offset);
+    }
 
-  /**
-   * Finds the default "Saved" collection for an account using a provided connection.
-   *
-   * @param accountId The ID of the account.
-   * @param conn The active database connection.
-   * @return An {@link Optional} containing the default collection, or empty if not found.
-   */
-  public Optional<Collection> findDefaultCollectionByAccount(int accountId, Connection conn) {
-   String sql = "SELECT * FROM collection WHERE account_id = ? AND is_default = TRUE" ;
-    return findOne(
-        conn,
-        sql,
-        this::mapRowToCollection,
-        accountId);
-  }
+    return withConnection(conn -> {
+      int poolSize = offset + limit + 50;
 
-  /**
-   * Checks if a default collection exists for a given account.
-   *
-   * @param accountId The ID of the account to check.
-   * @return {@code true} if a default collection exists, {@code false} otherwise.
-   */
-  public boolean existsDefaultCollection(int accountId) {
-    return withConnection(conn -> existsDefaultCollection(accountId, conn));
-  }
+      Set<Collection> recommended = new LinkedHashSet<>();
 
-  /**
-   * Checks if a default collection exists for an account using a provided connection.
-   *
-   * @param accountId The ID of the account to check.
-   * @param conn The active database connection.
-   * @return {@code true} if a default collection exists, {@code false} otherwise.
-   */
-  public boolean existsDefaultCollection(int accountId, Connection conn) {
-   String sql = "SELECT * FROM collection WHERE account_id = ? AND is_default = TRUE LIMIT 1" ;
-    return exists(
-        conn,
-        sql,
-        accountId);
-  }
+      recommended.addAll(findAffinityBasedPublic(accountId, poolSize, conn));
 
-  /**
-   * Updates the visibility (public/private) of a collection.
-   *
-   * @param collectionId The ID of the collection to update.
-   * @param isPublic The new visibility status.
-   * @throws EntityNotFoundException if no collection with the given ID is found.
-   */
-  public void updateVisibility(int collectionId, boolean isPublic) {
-    withConnection(conn -> {
-      int rows = executeUpdate(
-        conn,
-        "UPDATE collection SET is_public = ? WHERE collection_id = ?",
-        isPublic,
-        collectionId
-      );
-      if (rows == 0) {
-        throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
+      if (recommended.size() < poolSize) {
+        recommended.addAll(findRecentPublic(poolSize, 0, conn));
       }
-      return null;
+
+      List<Collection> finalList = new ArrayList<>(recommended);
+      if (offset >= finalList.size()) {
+        return List.of();
+      }
+      int toIndex = Math.min(offset + limit, finalList.size());
+      return finalList.subList(offset, toIndex);
     });
   }
 
-  /**
-   * Updates the visibility of a collection using a provided connection.
-   *
-   * @param collectionId The ID of the collection to update.
-   * @param isPublic The new visibility status.
-   * @param conn The active database connection.
-   * @throws EntityNotFoundException if no collection with the given ID is found.
-   */
-  public void updateVisibility(int collectionId, boolean isPublic, Connection conn) {
-    int rows = executeUpdate(
-      conn,
-      "UPDATE collection SET is_public = ? WHERE collection_id = ?",
-      isPublic,
-      collectionId
-    );
-    if (rows == 0) {
-      throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
-    }
+  private List<Collection> findRecentPublic(int limit, int offset) {
+    return withConnection(conn -> findRecentPublic(limit, offset, conn));
   }
 
-  /**
-   * Deletes a collection from the database.
-   *
-   * @param collectionId The ID of the collection to delete.
-   * @throws ValidationException if the collection is a default collection.
-   * @throws EntityNotFoundException if the collection does not exist.
-   */
+  private List<Collection> findRecentPublic(int limit, int offset, Connection conn) {
+    String sql = "SELECT * FROM collection WHERE is_public = TRUE ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    return findMany(conn, sql, this::mapRowToCollection, limit, offset);
+  }
+
+  private List<Collection> findAffinityBasedPublic(int accountId, int limit, Connection conn) {
+    String sql = """
+      SELECT c.*, SUM(ta.score) AS total_affinity
+      FROM collection c
+      JOIN collection_item ci ON c.collection_id = ci.collection_id
+      JOIN publication_topic pt ON ci.pub_id = pt.pub_id
+      JOIN topic_affinity ta ON pt.topic_id = ta.topic_id
+      WHERE c.is_public = TRUE AND ta.account_id = ?
+      GROUP BY c.collection_id
+      ORDER BY total_affinity DESC
+      LIMIT ?
+    """;
+    return findMany(conn, sql, this::mapRowToCollection, accountId, limit);
+  }
+
   public void delete(int collectionId) {
     withConnection(conn -> {
       delete(collectionId, conn);
@@ -248,14 +170,6 @@ public class CollectionRepository extends BaseRepository {
     });
   }
 
-  /**
-   * Deletes a collection using a provided connection.
-   *
-   * @param collectionId The ID of the collection to delete.
-   * @param conn The active database connection.
-   * @throws ValidationException if the collection is a default collection.
-   * @throws EntityNotFoundException if the collection does not exist.
-   */
   public void delete(int collectionId, Connection conn) {
     Optional<Collection> col = findById(collectionId, conn);
     if (col.isEmpty()) {
@@ -266,22 +180,15 @@ public class CollectionRepository extends BaseRepository {
     }
 
     int rows = executeUpdate(
-      conn,
-      "DELETE FROM collection WHERE collection_id = ?",
-      collectionId
+        conn,
+        "DELETE FROM collection WHERE collection_id = ?",
+        collectionId
     );
     if (rows == 0) {
       throw new EntityNotFoundException("Collection not found with ID: " + collectionId);
     }
   }
 
-  /**
-   * Maps a row from the 'collection' table in a {@link ResultSet} to a {@link Collection} object.
-   *
-   * @param rs The ResultSet to map from.
-   * @return The mapped Collection object.
-   * @throws SQLException if a database access error occurs.
-   */
   private Collection mapRowToCollection(ResultSet rs) throws SQLException {
     return new Collection(
         rs.getInt("collection_id"),

@@ -4,9 +4,9 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage
-} from "@/components/ui/avatar.jsx"
-import { Button } from "@/components/ui/button.jsx"
-import { Badge } from "@/components/ui/badge.jsx"
+} from "@/components/avatar.jsx"
+import { Button } from "@/components/button.jsx"
+import { Badge } from "@/components/badge.jsx"
 import { toast } from "sonner"
 import { userApi, authorRequestApi } from "@/lib/api.js"
 import { Bookmark, Eye, Heart } from "lucide-react"
@@ -44,7 +44,8 @@ export default function ProfilePage() {
   return (
       <section className="min-h-screen bg-[var(--color-background)] py-24 px-6">
         <div className="max-w-4xl mx-auto space-y-12">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-lg px-8 py-10 flex flex-col sm:flex-row items-center sm:items-start gap-8">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl
+          shadow-lg px-8 py-10 flex flex-col sm:flex-row items-center sm:items-start gap-8">
             <Avatar className="w-24 h-24 text-4xl shrink-0">
               <AvatarImage src="" alt="" />
               <AvatarFallback
@@ -93,7 +94,8 @@ export default function ProfilePage() {
 
           <div
               className={cn(
-                  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 font-ui transition-opacity duration-500 ease-in-out",
+                  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 font-ui "
+                  + "transition-opacity duration-500 ease-in-out",
                   isStatsLoading ? "opacity-0 pointer-events-none" : "opacity-100"
               )}
           >
@@ -118,7 +120,8 @@ export default function ProfilePage() {
 
           <div
               className={cn(
-                  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 font-ui transition-opacity duration-500 ease-in-out",
+                  "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 font-ui "
+                  + "transition-opacity duration-500 ease-in-out",
                   isInteractionLoading ? "opacity-0 pointer-events-none" : "opacity-100"
               )}
           >

@@ -8,23 +8,31 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 /**
- * The {@code AppBootstrap} class is an "application-wide bootstrap class" that initializes all
- * repositories and services and registers them with the servlet context for dependency injection
- * across the REST resources.
- * This class implements {@link ServletContextListener}, which is automatically invoked during
- * application startup/shutdown by the servlet container (Tomcat in our case).
+ * Application bootstrap class for initializing and wiring services and repositories.
+ * <p>
+ * This class implements {@link ServletContextListener} and is automatically loaded by the servlet
+ * container (Tomcat) during application startup and shutdown.
+ * <p>
+ * On startup, it creates and registers singleton service instances into the global {@link ServletContext}.
+ * These services can then be retrieved throughout the application, specifically within our REST resources, via
+ * {@code context.getAttribute(...)}, enabling simple and manual dependency injection.
+ * <p>
+ * On shutdown, it cleans up shared resources such as the HikariCP database connection pool.
+ * <p>
+ * This class should be registered in {@code web.xml} so that it can be loaded by the servlet container.
  */
 public class AppBootstrap implements ServletContextListener {
 
   /**
    * Called automatically when the application context is initialized.
-   * Sets up and registers all services and their dependencies so that they can be used by the
-   * REST resources.
+   * <p>
+   * This method instantiates all repositories and services required by the application, and then
+   * registers them in the {@link ServletContext}, making them globally accessible across the application.
+   *
    * @param sce the context event provided by the servlet container
    */
   @Override
   public void contextInitialized(ServletContextEvent sce) {
-
     ServletContext ctx = sce.getServletContext();
 
     // Initialize repository layer
@@ -71,7 +79,11 @@ public class AppBootstrap implements ServletContextListener {
     var collectionService = new CollectionService(
         collectionRepository,
         collectionItemRepository,
-        recommendationRepository
+        recommendationRepository,
+        interactionRepository,
+        publicationAuthorRepository,
+        publicationTopicRepository,
+        publicationRepository
     );
 
     var interactionService = new InteractionService(
@@ -79,7 +91,8 @@ public class AppBootstrap implements ServletContextListener {
         publicationRepository
     );
 
-    // Register services in servlet context
+    // Register services with ServletContext
+    // Retrieve services via: context.getAttribute("<serviceName>")
     ctx.setAttribute("personAccountService", personAccountService);
     ctx.setAttribute("authorRequestService", authorRequestService);
     ctx.setAttribute("topicService", topicService);
@@ -90,7 +103,10 @@ public class AppBootstrap implements ServletContextListener {
 
   /**
    * Called automatically when the application context is being destroyed.
-   * Closes the HikariCP connection pool.
+   * <p>
+   * This method ensures proper shutdown and cleanup of shared application resources. At the moment the only
+   * resource that needs to be closed is the HikariCP database connection pool.
+   *
    * @param sce the context event provided by the servlet container
    */
   @Override

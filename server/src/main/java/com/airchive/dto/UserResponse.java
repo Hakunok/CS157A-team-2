@@ -18,6 +18,9 @@ import com.airchive.entity.Person;
  * @param role
  * @param firstName
  * @param lastName
+ *
+ * @see Account
+ * @see Person
  */
 public record UserResponse(
     int accountId,

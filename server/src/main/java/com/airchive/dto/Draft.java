@@ -3,22 +3,20 @@ package com.airchive.dto;
 import com.airchive.entity.Publication;
 
 /**
- * Request body for creating or editing a drafted publication.
+ * Request and response body for creating or updating a drafted publication.
+ * <p>
+ * This record contains the metadata required to create or edit a draft. It does not include authors
+ * or topics, these should be submitted separately within the {@link PublishRequest} when publishing.
+ * <p>
+ * This DTO is used by the endpoints {@code POST /publications} and {@code PUT /publications/{id}}.
  *
- * <p>This record contains the bare minimum metadata needed to begin writing a publication.
- * Authors and topics are not included here and should only be sent once during a publish request.
+ * @param title the title of the draft
+ * @param content the draft content in Markdown/HTML
+ * @param doi optional DOI for papers
+ * @param url optional external link for a paper's PDF
+ * @param kind the type of publication being drafted
  *
- * <p>Used by endpoints such as:
- * <ul>
- *   <li>{@code POST /publications}</li>
- *   <li>{@code PUT /publications/{id}}</li>
- * </ul>
- *
- * @param title
- * @param content
- * @param doi
- * @param url
- * @param kind
+ * @see Publication.Kind
  */
 public record Draft(
     String title,

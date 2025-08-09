@@ -6,12 +6,9 @@ import com.airchive.dto.SessionUser;
 import com.airchive.dto.UserResponse;
 import com.airchive.entity.Account;
 import com.airchive.entity.Person;
-import com.airchive.exception.AuthenticationException;
 import com.airchive.service.PersonAccountService;
 
 import com.airchive.util.SecurityUtils;
-import com.airchive.util.ValidationUtils;
-import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -20,20 +17,34 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 
 /**
- * REST API for authentication, session handling, and account registration.
+ * REST resource for authentication, session management, and account registration.
+ * <p>
+ * This resource handles user login, logout, account creation, session validation, and admin promotion.
+ * It supports both reader and admin flows, and manages session state using {@link HttpSession}.
  *
- * <p>This resource handles login, logout, account creation, session validaiton, field validation
- * (username/email), and admin promotion.
+ * <p>
+ * <b>Exposed Endpoints:</b>
+ * <ul>
+ *   <li>{@code POST /auth/register} - register a new user account</li>
+ *   <li>{@code POST /auth/login} - authenticate a user and start a session</li>
+ *   <li>{@code GET /auth/me} - get the currently authenticated requesting user's info after refreshing the session</li>
+ *   <li>{@code POST /auth/logout} - invalidate the requesting user's session and clear the cookie</li>
+ *   <li>{@code POST /auth/promote/{accountId}} - promote a user to admin (admin only endpoint)</li>
+ * </ul>
  *
- * <p>All responses are returned in JSON and use {@link com.airchive.dto} and
- * {@link com.airchive.entity} records.
+ * <p>
+ * Services are injected manually via {@link ServletContext}, and session authentication
+ * is performed using {@link com.airchive.util.SecurityUtils}. All endpoints return JSON.
  */
 @Path("/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
+  // Used to retrieve service instances injected via AppBootstrap
   @Context private ServletContext ctx;
+
+  // Used to extract the current SessionUser for authentication
   @Context private HttpServletRequest request;
 
   private PersonAccountService accountService;
@@ -63,26 +74,7 @@ public class AuthResource {
     );
 
     Account newAccount = service.createAccount(person, account);
-    Person newPerson = service.getPersonById(newAccount.personId());
-
-    SessionUser sessionUser = SessionUser.from(newAccount);
-    HttpSession session = request.getSession(true);
-    session.setAttribute("user", sessionUser);
-
-    NewCookie sessionCookie = new NewCookie(
-        "JSESSIONID",
-        session.getId(),
-        "/",
-        null,
-        null,
-        60 * 60 * 24 * 30,
-        false,
-        true
-    );
-
-    return Response.ok(UserResponse.from(newAccount, newPerson))
-        .cookie(sessionCookie)
-        .build();
+    return getResponseCookie(service, newAccount);
   }
 
   @POST
@@ -91,26 +83,7 @@ public class AuthResource {
     PersonAccountService service = getAccountService();
 
     Account account = service.login(req.usernameOrEmail().toLowerCase(), req.password());
-    Person person = service.getPersonById(account.personId());
-
-    SessionUser sessionUser = SessionUser.from(account);
-    HttpSession session = request.getSession(true);
-    session.setAttribute("user", sessionUser);
-
-    NewCookie sessionCookie = new NewCookie(
-        "JSESSIONID",
-        session.getId(),
-        "/",
-        null,
-        null,
-        60 * 60 * 24 * 30,
-        false,
-        true
-    );
-
-    return Response.ok(UserResponse.from(account, person))
-        .cookie(sessionCookie)
-        .build();
+    return getResponseCookie(service, account);
   }
 
   @GET
@@ -162,5 +135,35 @@ public class AuthResource {
     SessionUser user = SecurityUtils.getSessionUserOrThrow(request);
     getAccountService().makeAdmin(user, accountId);
     return Response.ok(Map.of("message", "Account promoted.")).build();
+  }
+
+  /**
+   * Helper method to create a login response with a session cookie and user metadata.
+   *
+   * @param service the injected {@link PersonAccountService}
+   * @param newAccount the account to create a response with a session cookie for
+   * @return a {@link Response} with a cookie
+   */
+  private Response getResponseCookie(PersonAccountService service, Account newAccount) {
+    Person newPerson = service.getPersonById(newAccount.personId());
+
+    SessionUser sessionUser = SessionUser.from(newAccount);
+    HttpSession session = request.getSession(true);
+    session.setAttribute("user", sessionUser);
+
+    NewCookie sessionCookie = new NewCookie(
+        "JSESSIONID",
+        session.getId(),
+        "/",
+        null,
+        null,
+        60 * 60 * 24 * 30,
+        false,
+        true
+    );
+
+    return Response.ok(UserResponse.from(newAccount, newPerson))
+        .cookie(sessionCookie)
+        .build();
   }
 }

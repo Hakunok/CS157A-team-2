@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { Button } from "@/components/ui/button.jsx"
-import { Input } from "@/components/ui/input.jsx"
-import { Label } from "@/components/ui/label.jsx"
+import { Button } from "@/components/button.jsx"
+import { Input } from "@/components/input.jsx"
+import { Label } from "@/components/label.jsx"
 import { useAuth } from "@/context/AuthContext.jsx"
 import { toast } from "sonner"
 

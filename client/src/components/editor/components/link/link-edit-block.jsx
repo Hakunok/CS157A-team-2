@@ -1,8 +1,8 @@
 import * as React from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/button.jsx";
+import { Label } from "@/components/label.jsx";
+import { Switch } from "@/components/switch.jsx";
+import { Input } from "@/components/input.jsx";
 import { cn } from "@/lib/utils";
 
 const LinkEditBlock = ({

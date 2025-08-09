@@ -1,12 +1,14 @@
 package com.airchive.repository;
 
-import com.airchive.entity.Publication;
 import com.airchive.entity.Interaction;
+import com.airchive.entity.Publication;
+
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Manages the business logic and data persistence for the recommendation engine.
@@ -18,13 +20,10 @@ public class RecommendationRepository extends BaseRepository {
 
   /** The half-life for interaction scores, in hours. */
   private static final int DECAY_HOURS = 72;
-
   /** The maximum possible affinity score, used for capping/normalization. */
   private static final double MAX_SCORE = 100.0;
-
   /** The number of days of interaction history to consider for affinity calculations. */
   private static final int LOOKBACK_DAYS = 30;
-
   /** The maximum number of topics to store affinity scores for per user, to keep profiles focused. */
   private static final int MAX_AFFINITY_PER_USER = 15;
 
@@ -73,250 +72,325 @@ public class RecommendationRepository extends BaseRepository {
     executeUpdate(conn, "DELETE FROM topic_affinity WHERE account_id = ?", accountId);
     executeUpdate(conn, "DELETE FROM author_affinity WHERE account_id = ?", accountId);
 
-    String affinitySql = """
-    WITH user_interactions AS (
-      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score
-      FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      UNION ALL
-      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?)
-      FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      UNION ALL
-      SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?)
-      FROM collection_item ci
-      JOIN collection c ON ci.collection_id = c.collection_id
-      WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-    )
+    String userInteractionsSubquery = getUserInteractionsSubquery();
+
+    String affinitySql = String.format("""
     INSERT INTO topic_affinity (account_id, topic_id, score, last_updated)
     SELECT ?, pt.topic_id, LEAST(?, SUM(ui.weighted_score)), NOW()
-    FROM user_interactions ui JOIN publication_topic pt ON ui.pub_id = pt.pub_id
+    FROM (%s) AS ui
+    JOIN publication_topic pt ON ui.pub_id = pt.pub_id
     GROUP BY pt.topic_id ORDER BY 3 DESC LIMIT ?;
-    """;
+    """, userInteractionsSubquery);
 
     executeUpdate(conn, affinitySql,
+        accountId, MAX_SCORE,
         Interaction.VIEW.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
         Interaction.LIKE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
         Interaction.SAVE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        accountId, MAX_SCORE, MAX_AFFINITY_PER_USER);
+        MAX_AFFINITY_PER_USER);
 
-    String authorSql = """
-    WITH user_interactions AS (
-      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score
-      FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      UNION ALL
-      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?)
-      FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      UNION ALL
-      SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?)
-      FROM collection_item ci
-      JOIN collection c ON ci.collection_id = c.collection_id
-      WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-    )
+    String authorSql = String.format("""
     INSERT INTO author_affinity (account_id, author_id, score, last_updated)
     SELECT ?, pa.person_id, LEAST(?, SUM(ui.weighted_score)), NOW()
-    FROM user_interactions ui JOIN publication_author pa ON ui.pub_id = pa.pub_id
+    FROM (%s) AS ui
+    JOIN publication_author pa ON ui.pub_id = pa.pub_id
     GROUP BY pa.person_id ORDER BY 3 DESC LIMIT ?;
-    """;
+    """, userInteractionsSubquery);
 
     executeUpdate(conn, authorSql,
+        accountId, MAX_SCORE,
         Interaction.VIEW.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
         Interaction.LIKE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
         Interaction.SAVE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        accountId, MAX_SCORE, MAX_AFFINITY_PER_USER);
+        MAX_AFFINITY_PER_USER);
   }
 
   private boolean hasAnyAffinity(int accountId, Connection conn) {
-    String sql = """
-    SELECT 1 FROM (
-      SELECT 1 FROM topic_affinity WHERE account_id = ? LIMIT 1
-      UNION
-      SELECT 1 FROM author_affinity WHERE account_id = ? LIMIT 1
-    ) AS any_affinity LIMIT 1
-    """;
+    String topicSql = "SELECT EXISTS(SELECT 1 FROM topic_affinity WHERE account_id = ?)";
+    boolean hasTopicAffinity = findOne(conn, topicSql, rs -> rs.getBoolean(1), accountId)
+        .orElse(false);
 
-    return findOne(conn, sql, rs -> 1, accountId, accountId).isPresent();
+    if (hasTopicAffinity) {
+      return true;
+    }
+    String authorSql = "SELECT EXISTS(SELECT 1 FROM author_affinity WHERE account_id = ?)";
+    return findOne(conn, authorSql, rs -> rs.getBoolean(1), accountId)
+        .orElse(false);
   }
 
 
-  public List<Integer> getTopicBasedRecommendations(int accountId, int limit, int offset) {
-    return getTopicBasedRecommendations(accountId, limit, offset, null);
-  }
-
-  public List<Integer> getTopicBasedRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
+  public List<Integer> getTopicBasedRecommendations(int accountId, int limit, int offset, List<Publication.Kind> kinds) {
     return withConnection(conn -> {
-      StringBuilder sql = new StringBuilder("""
-      SELECT DISTINCT p.pub_id
+      StringBuilder sql = new StringBuilder(getPopularityCTE());
+
+      sql.append("""
+      SELECT p.pub_id
       FROM publication p
       JOIN publication_topic pt ON pt.pub_id = p.pub_id
       JOIN topic_affinity ta ON ta.topic_id = pt.topic_id
+      JOIN publication_popularity pp ON p.pub_id = pp.pub_id
       WHERE ta.account_id = ? AND ta.score > 0.5 AND p.status = 'PUBLISHED'
       AND NOT EXISTS (SELECT 1 FROM publication_view pv WHERE pv.account_id = ? AND pv.pub_id = p.pub_id)
-      AND NOT EXISTS (SELECT 1 FROM publication_like pl WHERE pl.account_id = ? AND pl.pub_id = p.pub_id)
       """);
-      addKindFilter(sql, kind);
-      sql.append(" ORDER BY ta.score DESC, p.published_at DESC LIMIT ? OFFSET ?");
 
-      if (kind != null) {
-        return findColumnMany(conn, sql.toString(), Integer.class, accountId, accountId, accountId, kind.name(), limit, offset);
-      } else {
-        return findColumnMany(conn, sql.toString(), Integer.class, accountId, accountId, accountId, limit, offset);
-      }
+      List<Object> params = new ArrayList<>(List.of(accountId, accountId));
+      addKindFilter(sql, kinds, params);
+
+      sql.append(" GROUP BY p.pub_id, pp.popularity_score");
+      sql.append(" ORDER BY (MAX(ta.score) * pp.popularity_score) DESC LIMIT ? OFFSET ?");
+      params.add(limit);
+      params.add(offset);
+
+      return findColumnMany(conn, sql.toString(), Integer.class, params.toArray());
     });
   }
 
-
-  public List<Integer> getAuthorBasedRecommendations(int accountId, int limit, int offset) {
-    return getAuthorBasedRecommendations(accountId, limit, offset, null);
-  }
-
-  public List<Integer> getAuthorBasedRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
+  public List<Integer> getAuthorBasedRecommendations(int accountId, int limit, int offset, List<Publication.Kind> kinds) {
     return withConnection(conn -> {
-      StringBuilder sql = new StringBuilder("""
-      SELECT DISTINCT p.pub_id
+      StringBuilder sql = new StringBuilder(getPopularityCTE());
+
+      sql.append("""
+      SELECT p.pub_id
       FROM publication p
       JOIN publication_author pa ON pa.pub_id = p.pub_id
       JOIN author_affinity aa ON aa.author_id = pa.person_id
+      JOIN publication_popularity pp ON p.pub_id = pp.pub_id
       WHERE aa.account_id = ? AND aa.score > 0.5 AND p.status = 'PUBLISHED'
       AND NOT EXISTS (SELECT 1 FROM publication_view pv WHERE pv.account_id = ? AND pv.pub_id = p.pub_id)
-      AND NOT EXISTS (SELECT 1 FROM publication_like pl WHERE pl.account_id = ? AND pl.pub_id = p.pub_id)
       """);
-      addKindFilter(sql, kind);
-      sql.append(" ORDER BY aa.score DESC, p.published_at DESC LIMIT ? OFFSET ?");
 
-      if (kind != null) {
-        return findColumnMany(conn, sql.toString(), Integer.class, accountId, accountId, accountId, kind.name(), limit, offset);
-      } else {
-        return findColumnMany(conn, sql.toString(), Integer.class, accountId, accountId, accountId, limit, offset);
-      }
+      List<Object> params = new ArrayList<>(List.of(accountId, accountId));
+      addKindFilter(sql, kinds, params);
+
+      sql.append(" GROUP BY p.pub_id, pp.popularity_score");
+      sql.append(" ORDER BY (MAX(aa.score) * pp.popularity_score) DESC LIMIT ? OFFSET ?");
+      params.add(limit);
+      params.add(offset);
+
+      return findColumnMany(conn, sql.toString(), Integer.class, params.toArray());
     });
   }
 
-
-  public List<Integer> getPopularRecommendations(int accountId, int limit, int offset) {
-    return getPopularRecommendations(accountId, limit, offset, null);
-  }
-
-  public List<Integer> getPopularRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
+  public List<Integer> getPopularRecommendations(int limit, int offset, List<Publication.Kind> kinds) {
     return withConnection(conn -> {
-      StringBuilder sql = new StringBuilder("""
-      SELECT p.pub_id,
-      (COUNT(DISTINCT pv.account_id) * ? + COUNT(DISTINCT pl.account_id) * ? + COUNT(DISTINCT ci.collection_id) * ?) as popularity_score
-      FROM publication p
-      LEFT JOIN publication_view pv ON pv.pub_id = p.pub_id
-      LEFT JOIN publication_like pl ON pl.pub_id = p.pub_id
-      LEFT JOIN collection_item ci ON ci.pub_id = p.pub_id
-      WHERE p.status = 'PUBLISHED'
-      AND p.published_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
-      AND NOT EXISTS (SELECT 1 FROM publication_view v WHERE v.account_id = ? AND v.pub_id = p.pub_id)
-      AND NOT EXISTS (SELECT 1 FROM publication_like l WHERE l.account_id = ? AND l.pub_id = p.pub_id)
-      """);
-      addKindFilter(sql, kind);
-      sql.append(" GROUP BY p.pub_id ORDER BY popularity_score DESC, p.published_at DESC LIMIT ? OFFSET ?");
+      StringBuilder sql = new StringBuilder(getPopularityCTE());
 
-      if (kind != null) {
-        return findColumnMany(conn, sql.toString(), Integer.class,
-            Interaction.VIEW.getAffinityWeight(),
-            Interaction.LIKE.getAffinityWeight(),
-            Interaction.SAVE.getAffinityWeight(),
-            accountId, accountId, kind.name(), limit, offset);
-      } else {
-        return findColumnMany(conn, sql.toString(), Integer.class,
-            Interaction.VIEW.getAffinityWeight(),
-            Interaction.LIKE.getAffinityWeight(),
-            Interaction.SAVE.getAffinityWeight(),
-            accountId, accountId, limit, offset);
+      sql.append("""
+      SELECT pp.pub_id
+      FROM publication_popularity pp
+      """);
+
+      List<Object> params = new ArrayList<>();
+      if (kinds != null && !kinds.isEmpty()) {
+        sql.append(" JOIN publication p ON pp.pub_id = p.pub_id ");
       }
+      sql.append(" WHERE 1=1 ");
+      addKindFilter(sql, kinds, params);
+
+      sql.append(" ORDER BY pp.popularity_score DESC LIMIT ? OFFSET ?");
+      params.add(limit);
+      params.add(offset);
+
+      return findColumnMany(conn, sql.toString(), Integer.class, params.toArray());
     });
   }
 
-  public List<Integer> getPopularRecommendationsForGuest(int limit, int offset) {
-    return getPopularRecommendationsForGuest(limit, offset, null);
-  }
-
-  public List<Integer> getPopularRecommendationsForGuest(int limit, int offset, Publication.Kind kind) {
-    return withConnection(conn -> {
-      StringBuilder sql = new StringBuilder("""
-      SELECT p.pub_id, (COUNT(DISTINCT pv.account_id) * ? + COUNT(DISTINCT pl.account_id) * ? + COUNT(DISTINCT ci.collection_id) * ?) as popularity_score
-      FROM publication p
-      LEFT JOIN publication_view pv ON pv.pub_id = p.pub_id
-      LEFT JOIN publication_like pl ON pl.pub_id = p.pub_id
-      LEFT JOIN collection_item ci ON ci.pub_id = p.pub_id
-      WHERE p.status = 'PUBLISHED'
-      AND p.published_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
-      """);
-      addKindFilter(sql, kind);
-      sql.append(" GROUP BY p.pub_id ORDER BY popularity_score DESC, p.published_at DESC LIMIT ? OFFSET ?");
-
-      if (kind != null) {
-        return findColumnMany(conn, sql.toString(), Integer.class,
-            Interaction.VIEW.getAffinityWeight(),
-            Interaction.LIKE.getAffinityWeight(),
-            Interaction.SAVE.getAffinityWeight(),
-            kind.name(), limit, offset);
-      } else {
-        return findColumnMany(conn, sql.toString(), Integer.class,
-            Interaction.VIEW.getAffinityWeight(),
-            Interaction.LIKE.getAffinityWeight(),
-            Interaction.SAVE.getAffinityWeight(),
-            limit, offset);
-      }
-    });
-  }
-
-  public List<Integer> getHybridRecommendations(int accountId, int limit, int offset) {
-    return getHybridRecommendations(accountId, limit, offset, null);
-  }
-
-  public List<Integer> getHybridRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
+  public List<Integer> getHybridRecommendations(int accountId, int limit, List<Publication.Kind> kinds) {
     Set<Integer> combined = new LinkedHashSet<>();
-    int split = (int) (limit * 0.6);
-    combined.addAll(getTopicBasedRecommendations(accountId, split, offset, kind));
-    combined.addAll(getAuthorBasedRecommendations(accountId, limit - split, offset, kind));
-    return new ArrayList<>(combined).subList(0, Math.min(limit, combined.size()));
+    int split = (int) (limit * 0.8);
+
+    combined.addAll(getTopicBasedRecommendations(accountId, split, 0, kinds));
+    combined.addAll(getAuthorBasedRecommendations(accountId, limit - split, 0, kinds));
+
+    return new ArrayList<>(combined);
   }
 
-  public List<Integer> getSmartRecommendations(int accountId, int limit, int offset) {
-    return getSmartRecommendations(accountId, limit, offset, null);
-  }
-
-  /**
-   * Generates a list of recommended publications.
-   * First attempts to fill the page with recommendations generated from the account's affinities.
-   * The remaining spaces are filled with the platform's popular recommendations.
-   */
-  public List<Integer> getSmartRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
+  public List<Integer> getSmartRecommendations(int accountId, int limit, int offset, List<Publication.Kind> kinds) {
     return withConnection(conn -> {
-      boolean hasAffinity = hasAnyAffinity(accountId, conn);
-      List<Integer> recs = hasAffinity
-          ? getHybridRecommendations(accountId, limit, offset, kind)
-          : new ArrayList<>();
+      int desiredPoolSize = offset + limit + 20;
+      Set<Integer> combinedRecs = new LinkedHashSet<>();
 
-      if (recs.size() < limit) {
-        List<Integer> popular = getPopularRecommendations(accountId, limit + 5, offset, kind);
-        Set<Integer> combined = new LinkedHashSet<>(recs);
-        for (Integer pubId : popular) {
-          if (combined.size() >= limit) break;
-          combined.add(pubId);
-        }
-        recs = new ArrayList<>(combined);
+      boolean hasAffinity = hasAnyAffinity(accountId, conn);
+      if (hasAffinity) {
+        combinedRecs.addAll(getHybridRecommendations(accountId, desiredPoolSize, kinds));
       }
-      return recs;
+
+      if (combinedRecs.size() < offset + limit) {
+        List<Integer> fallback = getPopularRecommendations(desiredPoolSize, 0, kinds);
+        for (Integer pubId : fallback) {
+          if (combinedRecs.size() >= offset + limit) break;
+          combinedRecs.add(pubId);
+        }
+      }
+
+      List<Integer> finalRecs = new ArrayList<>(combinedRecs);
+      if (offset >= finalRecs.size()) return List.of();
+      return finalRecs.subList(offset, Math.min(offset + limit, finalRecs.size()));
     });
   }
 
-  public List<Integer> getRecommendations(int accountId, int limit, int offset) {
-    return getRecommendations(accountId, limit, offset, null);
+
+  public List<Integer> getRecommendations(int accountId, int limit, int offset, List<Publication.Kind> kinds) {
+    if (accountId <= 0) {
+      return getPopularRecommendations(limit, offset, kinds);
+    }
+    return getSmartRecommendations(accountId, limit, offset, kinds);
   }
 
-  public List<Integer> getRecommendations(int accountId, int limit, int offset, Publication.Kind kind) {
-    if (accountId <= 0) {
-      return getPopularRecommendationsForGuest(limit, offset, kind);
+  public List<Integer> getPublicationsByTopics(List<Integer> topicIds, List<Publication.Kind> kinds, int limit, int offset) {
+    return withConnection(conn -> {
+      if (topicIds == null || topicIds.isEmpty()) return List.of();
+
+      String topicPlaceholders = topicIds.stream()
+          .map(id -> "?")
+          .collect(Collectors.joining(", "));
+
+      int topicCount = topicIds.size();
+
+      StringBuilder sql = new StringBuilder(String.format("""
+      SELECT p.pub_id
+      FROM publication p
+      JOIN publication_topic pt ON p.pub_id = pt.pub_id
+      WHERE pt.topic_id IN (%s) AND p.status = 'PUBLISHED'
+      """, topicPlaceholders));
+
+      List<Object> params = new ArrayList<>();
+      params.addAll(topicIds);
+
+      if (kinds != null && !kinds.isEmpty()) {
+        String kindPlaceholders = kinds.stream().map(k -> "?").collect(Collectors.joining(", "));
+        sql.append(" AND p.kind IN (").append(kindPlaceholders).append(")");
+        kinds.forEach(k -> params.add(k.name()));
+      }
+
+      sql.append(" GROUP BY p.pub_id, p.submitted_at");
+      sql.append(" HAVING COUNT(DISTINCT pt.topic_id) = ?");
+
+      params.add(topicCount);
+
+      sql.append(" ORDER BY p.submitted_at DESC LIMIT ? OFFSET ?");
+      params.add(limit);
+      params.add(offset);
+
+      return findColumnMany(conn, sql.toString(), Integer.class, params.toArray());
+    });
+  }
+
+  public List<Integer> getRecommendedByTopics(int accountId, List<Integer> topicIds, List<Publication.Kind> kinds, int limit, int offset) {
+    return withConnection(conn -> {
+      if (topicIds == null || topicIds.isEmpty()) return List.of();
+
+      StringBuilder sql = new StringBuilder(getPopularityCTE());
+
+      sql.append("""
+      SELECT p.pub_id
+      FROM publication p
+      JOIN publication_topic pt ON pt.pub_id = p.pub_id
+      JOIN topic_affinity ta ON ta.topic_id = pt.topic_id
+      JOIN publication_popularity pp ON p.pub_id = pp.pub_id
+      WHERE ta.account_id = ? AND ta.score > 0.5 AND pt.topic_id IN (
+      """);
+
+      String topicPlaceholders = topicIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+      sql.append(topicPlaceholders).append(") AND p.status = 'PUBLISHED'");
+
+      List<Object> params = new ArrayList<>();
+      params.add(accountId);
+      params.addAll(topicIds);
+
+      addKindFilter(sql, kinds, params);
+
+      sql.append(" GROUP BY p.pub_id, pp.popularity_score");
+      sql.append(" ORDER BY (MAX(ta.score) * pp.popularity_score) DESC LIMIT ? OFFSET ?");
+      params.add(limit);
+      params.add(offset);
+
+      return findColumnMany(conn, sql.toString(), Integer.class, params.toArray());
+    });
+  }
+
+  public List<Integer> getTopicBasedRecommendations(int accountId, List<Integer> topicIds, List<Publication.Kind> kinds, int limit, int offset) {
+    List<Integer> recommended = getRecommendedByTopics(accountId, topicIds, kinds, limit, offset);
+
+    if (recommended.size() >= limit) {
+      return recommended;
     }
-    return getSmartRecommendations(accountId, limit, offset, kind);
+
+    int remaining = limit - recommended.size();
+
+    List<Integer> fallback = getPublicationsByTopics(topicIds, kinds, remaining, 0)
+        .stream()
+        .filter(id -> !recommended.contains(id))
+        .toList();
+
+    List<Integer> result = new ArrayList<>(recommended);
+    result.addAll(fallback);
+    return result;
+  }
+
+
+  private String getUserInteractionsSubquery() {
+    return """
+      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, viewed_at, NOW()) / ?) AS weighted_score
+      FROM publication_view WHERE account_id = ? AND viewed_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+      UNION ALL
+      SELECT pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, liked_at, NOW()) / ?) AS weighted_score
+      FROM publication_like WHERE account_id = ? AND liked_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+      UNION ALL
+      SELECT ci.pub_id, ? * EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / ?) AS weighted_score
+      FROM collection_item ci JOIN collection c ON ci.collection_id = c.collection_id
+      WHERE c.account_id = ? AND ci.added_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+    """;
   }
 
   private void addKindFilter(StringBuilder sql, Publication.Kind kind) {
     if (kind != null) {
       sql.append(" AND p.kind = ?");
     }
+  }
+
+  private void addKindFilter(StringBuilder sql, List<Publication.Kind> kinds, List<Object> params) {
+    if (kinds != null && !kinds.isEmpty()) {
+      sql.append(" AND p.kind IN (")
+          .append(kinds.stream().map(k -> "?").collect(Collectors.joining(", ")))
+          .append(")");
+      kinds.forEach(k -> params.add(k.name()));
+    }
+  }
+
+  private void addKindFilter(StringBuilder sql, Publication.Kind kind, List<Object> params) {
+    if (kind != null) {
+      sql.append(" AND p.kind = ?");
+      params.add(kind.name());
+    }
+  }
+
+  private String getPopularityCTE() {
+    final double GRAVITY = 1.8;
+    final int AGE_OFFSET_HOURS = 2;
+    final double VIEW_WEIGHT = Interaction.VIEW.getAffinityWeight();
+    final int VIEW_DECAY_HOURS = 72;
+    final double LIKE_WEIGHT = Interaction.LIKE.getAffinityWeight();
+    final int LIKE_DECAY_HOURS = 168;
+    final double SAVE_WEIGHT = Interaction.SAVE.getAffinityWeight();
+    final int SAVE_DECAY_HOURS = 336;
+
+    return String.format("""
+    WITH publication_popularity AS (
+      SELECT
+        p.pub_id,
+        (
+          COALESCE(SUM(EXP(-TIMESTAMPDIFF(HOUR, pv.viewed_at, NOW()) / %d.0)), 0) * %f +
+          COALESCE(SUM(EXP(-TIMESTAMPDIFF(HOUR, pl.liked_at, NOW()) / %d.0)), 0) * %f +
+          COALESCE(SUM(EXP(-TIMESTAMPDIFF(HOUR, ci.added_at, NOW()) / %d.0)), 0) * %f
+        ) / POWER(GREATEST(1, TIMESTAMPDIFF(HOUR, p.submitted_at, NOW())) + %d, %f) AS popularity_score
+      FROM publication p
+      LEFT JOIN publication_view pv ON p.pub_id = pv.pub_id
+      LEFT JOIN publication_like pl ON p.pub_id = pl.pub_id
+      LEFT JOIN collection_item ci ON p.pub_id = ci.pub_id
+      WHERE p.status = 'PUBLISHED'
+      GROUP BY p.pub_id
+    )
+    """, VIEW_DECAY_HOURS, VIEW_WEIGHT, LIKE_DECAY_HOURS, LIKE_WEIGHT, SAVE_DECAY_HOURS, SAVE_WEIGHT, AGE_OFFSET_HOURS, GRAVITY);
   }
 }

@@ -3,17 +3,19 @@ package com.airchive.dto;
 import com.airchive.entity.Collection;
 import java.time.LocalDateTime;
 /**
- * Lightweight representation of a {@link com.airchive.entity.Collection}, that will be used for
- * bare minimum views in the frontend.
+ * Lightweight response body representing a {@link Collection} for minimal client display.
+ * <p>
+ * This DTO is used in explore pages and dashboards where only basic collection metadata is needed.
+ * <p>
+ * Used by endpoints such as {@code GET /collections/my} and {@code GET /collections/recommendations}.
  *
- * <p>This record includes only the minimal metadata needed for display like title, default, and
- * publicity.
+ * @param collectionId the unique ID of the collection
+ * @param title the title of the collection
+ * @param isDefault whether this is the default collection for the user
+ * @param isPublic whether the collection is publicly visible
+ * @param createdAt the creation timestamp
  *
- * @param collectionId
- * @param title
- * @param isDefault
- * @param isPublic
- * @param createdAt
+ * @see Collection
  */
 public record MiniCollection(
     int collectionId,

@@ -392,7 +392,6 @@
     margin: 2em 0;
   }
 
-  /* List styles for proper rendering */
   .prose ul,
   .prose ol {
     margin: 1.25em 0;
@@ -416,7 +415,6 @@
     margin: 0;
   }
 
-  /* Nested lists */
   .prose ul ul,
   .prose ol ol,
   .prose ul ol,
@@ -480,7 +478,6 @@
 
 /*
  * tiptap editor styles
- * try to match.
  */
 .minimal-tiptap-editor .ProseMirror {
   font-family: var(--font-content), serif;

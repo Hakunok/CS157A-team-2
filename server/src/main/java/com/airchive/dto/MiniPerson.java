@@ -3,15 +3,18 @@ package com.airchive.dto;
 import com.airchive.entity.Person;
 
 /**
- * Lightweight representation of a person, that will be used in publication summaries or list views.
+ * Lightweight response body representing a {@link Person}, used for publication metadata.
+ * <p>
+ * This DTO includes only the minimal identity information required for publication display, such as the person's
+ * full name.
+ * <p>
+ * Used primarily inside {@link MiniPublication} to represent authors.
  *
- * <p>This record includes the bare-minimum information for identifying a {@code person},
- * primarily for frontend UI.
+ * @param personId the unique id of the person
+ * @param fullName the full display name of the person
  *
- * <p>Used within {@link MiniPublication} to avoid sending full {@link Person} records.
- *
- * @param personId
- * @param fullName
+ * @see Person
+ * @see MiniPublication
  */
 public record MiniPerson(
     int personId,
@@ -19,10 +22,10 @@ public record MiniPerson(
 ) {
 
   /**
-   * Converts a {@link Person} entity into a {@code MiniPerson} for lightweight display.
+   * Creates a {@code MiniPerson} from a full {@link Person} entity.
    *
    * @param person the {@link Person} to convert
-   * @return a {@code MiniPerson} containing the id and full name
+   * @return a minimal DTO with only the ID and full name
    */
   public static MiniPerson from(Person person) {
     return new MiniPerson(person.personId(), person.firstName() + " " + person.lastName());

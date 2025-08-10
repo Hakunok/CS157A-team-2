@@ -18,14 +18,20 @@ import java.util.stream.Collectors;
  */
 public class RecommendationRepository extends BaseRepository {
 
-  /** The half-life for interaction scores, in hours. */
-  private static final int DECAY_HOURS = 72;
   /** The maximum possible affinity score, used for capping/normalization. */
   private static final double MAX_SCORE = 100.0;
   /** The number of days of interaction history to consider for affinity calculations. */
   private static final int LOOKBACK_DAYS = 30;
   /** The maximum number of topics to store affinity scores for per user, to keep profiles focused. */
   private static final int MAX_AFFINITY_PER_USER = 15;
+
+  /** The decay rate for view interactions in affinity calculation, in hours. */
+  private static final int AFFINITY_VIEW_DECAY_HOURS = 72;
+  /** The decay rate for like interactions in affinity calculation, in hours. */
+  private static final int AFFINITY_LIKE_DECAY_HOURS = 168;
+  /** The decay rate for save interactions in affinity calculation, in hours. */
+  private static final int AFFINITY_SAVE_DECAY_HOURS = 336;
+
 
   public void updateAffinityForInteraction(int accountId, int pubId, double weight) {
     withConnection(conn -> {
@@ -37,7 +43,7 @@ public class RecommendationRepository extends BaseRepository {
   public void updateAffinityForInteraction(int accountId, int pubId, double weight, Connection conn) {
     String topicSql = """
     INSERT INTO topic_affinity (account_id, topic_id, score, last_updated)
-    SELECT ?, pt.topic_id, GREATEST(0, LEAST(?, COALESCE(SUM(?), 0))), NOW()
+    SELECT ?, pt.topic_id, GREATEST(0, LEAST(?, SUM(?))), NOW()
     FROM publication_topic pt
     WHERE pt.pub_id = ?
     GROUP BY pt.topic_id
@@ -48,7 +54,7 @@ public class RecommendationRepository extends BaseRepository {
 
     String authorSql = """
     INSERT INTO author_affinity (account_id, author_id, score, last_updated)
-    SELECT ?, pa.person_id, GREATEST(0, LEAST(?, COALESCE(SUM(?), 0))), NOW()
+    SELECT ?, pa.person_id, GREATEST(0, LEAST(?, SUM(?))), NOW()
     FROM publication_author pa
     WHERE pa.pub_id = ?
     GROUP BY pa.person_id
@@ -84,9 +90,9 @@ public class RecommendationRepository extends BaseRepository {
 
     executeUpdate(conn, affinitySql,
         accountId, MAX_SCORE,
-        Interaction.VIEW.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        Interaction.LIKE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        Interaction.SAVE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.VIEW.getAffinityWeight(), AFFINITY_VIEW_DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.LIKE.getAffinityWeight(), AFFINITY_LIKE_DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.SAVE.getAffinityWeight(), AFFINITY_SAVE_DECAY_HOURS, accountId, LOOKBACK_DAYS,
         MAX_AFFINITY_PER_USER);
 
     String authorSql = String.format("""
@@ -99,9 +105,9 @@ public class RecommendationRepository extends BaseRepository {
 
     executeUpdate(conn, authorSql,
         accountId, MAX_SCORE,
-        Interaction.VIEW.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        Interaction.LIKE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
-        Interaction.SAVE.getAffinityWeight(), DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.VIEW.getAffinityWeight(), AFFINITY_VIEW_DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.LIKE.getAffinityWeight(), AFFINITY_LIKE_DECAY_HOURS, accountId, LOOKBACK_DAYS,
+        Interaction.SAVE.getAffinityWeight(), AFFINITY_SAVE_DECAY_HOURS, accountId, LOOKBACK_DAYS,
         MAX_AFFINITY_PER_USER);
   }
 
@@ -194,6 +200,7 @@ public class RecommendationRepository extends BaseRepository {
       return findColumnMany(conn, sql.toString(), Integer.class, params.toArray());
     });
   }
+
 
   public List<Integer> getHybridRecommendations(int accountId, int limit, List<Publication.Kind> kinds) {
     Set<Integer> combined = new LinkedHashSet<>();

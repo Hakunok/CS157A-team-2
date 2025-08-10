@@ -31,7 +31,7 @@ public class DbConnectionManager {
           + "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
   private static final String DB_USER = PropertyUtils.getProperty("db.user");
   private static final String DB_PASSWORD = PropertyUtils.getProperty("db.password");
-  private static final boolean USE_POOL = PropertyUtils.getBooleanProperty("db.usePool", true);
+  private static final boolean USE_POOL = PropertyUtils.getBooleanProperty("db.usePool", false);
   private static HikariDataSource dataSource;
 
   static {
